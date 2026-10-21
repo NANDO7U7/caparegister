@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SIGECAP — Gestión de Capacitaciones{% endblock %}</title>
+    
+    <!-- Tipografía Inter & Material Symbols Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    
+    <!-- Hoja de Estilos SIGECAP / Stitch Theme -->
+    <link rel="stylesheet" href="/static/css/stitch-theme.css">
+    
+    <!-- Chart.js para visualizaciones y analíticas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar de Navegación Lateral -->
+        <aside class="app-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo-icon">
+                    <span class="material-symbols-outlined" style="font-size: 26px;">school</span>
+                </div>
+                <div class="sidebar-brand">
+                    <h1>SIGECAP</h1>
+                    <p>Gestión de Capacitaciones</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Principal</div>
+                <a href="{% url 'core:dashboard' %}" class="nav-link-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <span class="material-symbols-outlined">dashboard</span>
+                    <span>Dashboard</span>
+                </a>
+
+                <div class="nav-section-title">Experiencia del Docente</div>
+                <a href="{% url 'personas:portal_docente' %}" class="nav-link-item {% if 'portal' in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">person_pin</span>
+                    <span>Portal Docente</span>
+                </a>
+
+                <div class="nav-section-title">Formación Continua</div>
+                <a href="{% url 'capacitaciones:lista' %}" class="nav-link-item {% if request.resolver_match.url_name == 'lista' or request.resolver_match.url_name == 'sistema_gestion' %}active{% endif %}">
+                    <span class="material-symbols-outlined">analytics</span>
+                    <span>Consola PIF · UGB</span>
+                </a>
+                <a href="{% url 'capacitaciones:lista_clasica' %}" class="nav-link-item {% if request.resolver_match.url_name == 'lista_clasica' %}active{% endif %}">
+                    <span class="material-symbols-outlined">event_note</span>
+                    <span>Fichas de Cursos</span>
+                </a>
+                <a href="{% url 'capacitaciones:calendario' %}" class="nav-link-item {% if 'calendario' in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">calendar_month</span>
+                    <span>Calendario</span>
+                </a>
+                <a href="{% url 'personas:matriz_docente' %}" class="nav-link-item {% if 'matriz' in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">grid_view</span>
+                    <span>Matriz Docente</span>
+                </a>
+                <a href="{% url 'personas:lista' %}" class="nav-link-item {% if 'personas' in request.path and 'matriz' not in request.path and 'portal' not in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">badge</span>
+                    <span>Padrón General</span>
+                </a>
+
+                <div class="nav-section-title">Gestión y Finanzas</div>
+                <a href="{% url 'costos:dashboard' %}" class="nav-link-item {% if 'costos' in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">payments</span>
+                    <span>Costos y Presupuesto</span>
+                </a>
+                <a href="{% url 'catalogos:administracion' %}" class="nav-link-item {% if 'catalogos' in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">dataset</span>
+                    <span>Catálogos Base</span>
+                </a>
+
+                <div class="nav-section-title">Administración</div>
+                <a href="{% url 'core:panel_administracion' %}" class="nav-link-item {% if 'administracion' in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">admin_panel_settings</span>
+                    <span>Panel de Administración</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile-badge" style="cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%;" onclick="document.getElementById('modalSwitchRoleGlobal').style.display='flex';" title="Clic para alternar rol o activar Modo Administrador">
+                    <div class="avatar-circle">
+                        {% if request.user.is_superuser or not request.user.is_authenticated %}
+                            A
+                        {% else %}
+                            {{ request.user.username|slice:":1"|upper }}
+                        {% endif %}
+                    </div>
+                    <div style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+                        <span style="font-size: 13px; font-weight: 600; color: white; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">
+                            {% if request.user.is_superuser %}Administrador{% elif request.user.is_authenticated %}{{ request.user.username|title }}{% else %}Administrador{% endif %}
+                        </span>
+                        <span style="font-size: 10px; color: {% if request.user.is_superuser or not request.user.is_authenticated %}#93c5fd{% else %}rgba(255,255,255,0.7){% endif %}; font-weight: 600;">
+                            {% if request.user.is_superuser or not request.user.is_authenticated %}Edición Total (Admin){% elif request.user.username == 'ugb_pif' %}Edición PIF{% else %}Solo Lectura{% endif %}
+                        </span>
+                    </div>
+                    <span class="material-symbols-outlined" style="font-size: 16px; color: rgba(255,255,255,0.7);">swap_horiz</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Contenedor Principal de la App -->
+        <main class="app-main">
+            <!-- Barra Superior / Top Navbar -->
+            <header class="app-header">
+                <div class="header-title">
+                    <h2>{% block page_title %}Dashboard Principal{% endblock %}</h2>
+                    <span>{% block page_subtitle %}Sistema Institucional de Gestión de Capacitaciones Docentes y Administrativas{% endblock %}</span>
+                </div>
+
+                <div class="header-actions">
+                    <form method="GET" action="{% url 'capacitaciones:lista' %}" class="search-bar" style="margin: 0;">
+                        <span class="material-symbols-outlined" style="color: var(--text-muted); font-size: 18px;">search</span>
+                        <input type="text" name="q" placeholder="Buscar capacitación, docente o código...">
+                    </form>
+
+                    {% block header_buttons %}
+                    <a href="{% url 'capacitaciones:crear' %}" class="btn btn-primary">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">add_circle</span>
+                        <span>Nueva Capacitación</span>
+                    </a>
+                    {% endblock %}
+                </div>
+            </header>
+
+            <!-- Mensajes Flash -->
+            {% if messages %}
+            <div style="padding: 16px 32px 0 32px;">
+                {% for message in messages %}
+                <div style="padding: 12px 16px; border-radius: var(--radius-md); margin-bottom: 12px; font-weight: 500; font-size: 13px; 
+                     background-color: {% if message.tags == 'error' %}var(--color-danger-bg){% else %}var(--color-success-bg){% endif %};
+                     color: {% if message.tags == 'error' %}var(--color-danger){% else %}var(--color-success){% endif %};
+                     border: 1px solid {% if message.tags == 'error' %}var(--color-danger-border){% else %}var(--color-success-border){% endif %};">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Contenido Dinámico de la Vista -->
+            <div class="view-content">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Global: Conmutador Rápido de Rol y Modo Admin -->
+    <div id="modalSwitchRoleGlobal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 440px; padding: 24px; box-shadow: var(--shadow-lg);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="color: var(--color-primary); font-size: 18px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-outlined" style="color: var(--color-secondary);">admin_panel_settings</span>
+                    <span>Modo de Usuario y Permisos</span>
+                </h3>
+                <button type="button" onclick="document.getElementById('modalSwitchRoleGlobal').style.display='none'" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted);">&times;</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+                Selecciona el rol con el que deseas interactuar en la aplicación. Al elegir <strong>Administrador</strong> se habilitarán todas las acciones de edición y eliminación web:
+            </p>
+
+            <form method="POST" action="{% url 'core:conmutar_rol' %}" style="display: flex; flex-direction: column; gap: 10px;">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+
+                <button type="submit" name="username" value="admin" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; border: 2px solid {% if request.user.is_superuser or not request.user.is_authenticated %}var(--color-primary){% else %}var(--border-light){% endif %}; background: {% if request.user.is_superuser or not request.user.is_authenticated %}rgba(0, 35, 111, 0.04){% else %}#f8fafc{% endif %}; text-align: left; cursor: pointer; transition: all 0.15s;">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: #1e3a8a; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700;">A</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; color: #1e3a8a; font-size: 14px;">Administrador (ADMIN)</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">Edición total en web, gestión de catálogos y usuarios</div>
+                    </div>
+                    {% if request.user.is_superuser or not request.user.is_authenticated %}<span class="badge badge-finalizada">Activo</span>{% endif %}
+                </button>
+
+                <button type="submit" name="username" value="ugb_pif" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; border: 2px solid {% if request.user.username == 'ugb_pif' %}var(--color-secondary){% else %}var(--border-light){% endif %}; background: {% if request.user.username == 'ugb_pif' %}rgba(0, 81, 213, 0.04){% else %}#f8fafc{% endif %}; text-align: left; cursor: pointer; transition: all 0.15s;">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: #0284c7; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700;">P</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; color: #0284c7; font-size: 14px;">Gestor UGB · PIF</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">Edición en Consola PIF y registro de eventos</div>
+                    </div>
+                    {% if request.user.username == 'ugb_pif' %}<span class="badge badge-finalizada">Activo</span>{% endif %}
+                </button>
+
+                <button type="submit" name="username" value="coordinador" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; border: 2px solid {% if request.user.username == 'coordinador' %}#d97706{% else %}var(--border-light){% endif %}; background: {% if request.user.username == 'coordinador' %}rgba(217, 119, 6, 0.04){% else %}#f8fafc{% endif %}; text-align: left; cursor: pointer; transition: all 0.15s;">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: #d97706; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700;">C</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; color: #d97706; font-size: 14px;">Coordinador Institucional</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">Modo consulta y visualización de auditoría</div>
+                    </div>
+                    {% if request.user.username == 'coordinador' %}<span class="badge badge-finalizada">Activo</span>{% endif %}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

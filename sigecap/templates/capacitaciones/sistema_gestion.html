@@ -1,0 +1,1289 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SGRC · UGB — Sistema de Gestión de Registro de Capacitaciones Universitarias</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS (xlsx) para importar y exportar Excel nativamente -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <!-- jsPDF y AutoTable para exportar reportes en PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- Google Font: Inter / Segoe UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #f1f5f9;
+    }
+
+    .modal-backdrop {
+      background-color: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(3px);
+    }
+
+    .table-container::-webkit-scrollbar {
+      height: 8px;
+      width: 8px;
+    }
+
+    .table-container::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body class="text-slate-800 min-h-screen flex flex-col antialiased">
+
+  <!-- ==================== BARRA SUPERIOR / ENCABEZADO INSTITUCIONAL ==================== -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center space-x-3.5">
+        <div class="bg-blue-600 text-white font-black rounded-xl p-2.5 text-base tracking-wider shadow-inner flex items-center justify-center">
+          UGB · PIF
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight">Sistema de Gestión de Registro de Capacitaciones</h1>
+            <span class="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-500/30">PostgreSQL Activo</span>
+          </div>
+          <p class="text-xs text-slate-300">Dirección de Innovación y Gestión Académica · Plan Integral de Formación Docente</p>
+        </div>
+      </div>
+
+      <!-- Accesos y Estado de Autenticación -->
+      <div class="flex items-center flex-wrap gap-2.5">
+        <a href="{% url 'core:dashboard' %}" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+          <span>← Panel SIGECAP</span>
+        </a>
+        <a href="{% url 'capacitaciones:lista_clasica' %}" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+          <span>Vista de Fichas</span>
+        </a>
+
+        <div id="userBadge" class="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-xs">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block animate-pulse" id="statusDot"></span>
+          <span id="currentUserName" class="font-semibold text-slate-100">Administrador (ADMIN)</span>
+          <span id="currentUserRoleBadge" class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] uppercase font-bold">Edición Total</span>
+        </div>
+        <button onclick="openLoginModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition shadow-sm">
+          Cambiar Rol
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== CONTENIDO PRINCIPAL ==================== -->
+  <main class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex-1 space-y-6">
+
+    <!-- ALERTAS Y NOTIFICACIONES DINÁMICAS -->
+    <div id="alertBanner" class="hidden rounded-xl p-4 border text-sm font-medium flex justify-between items-center shadow-sm transition-all duration-300">
+      <div class="flex items-center gap-2">
+        <span id="alertIcon" class="text-lg">✓</span>
+        <span id="alertMessage"></span>
+      </div>
+      <button onclick="hideAlert()" class="text-lg font-bold ml-4 leading-none hover:opacity-75">&times;</button>
+    </div>
+
+    <!-- TARJETAS DE RESUMEN (KPIS Y PRESUPUESTO) -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200/80 transition hover:shadow-md">
+        <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Total Capacitaciones</div>
+        <div class="mt-2 flex items-baseline justify-between">
+          <span id="kpiTotalEventos" class="text-3xl font-extrabold text-slate-900">0</span>
+          <span id="kpiModalidadSplit" class="text-xs text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full font-semibold border border-blue-100">0 Virtuales / 0 Presenciales</span>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200/80 transition hover:shadow-md">
+        <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Asistencias Registradas</div>
+        <div class="mt-2 flex items-baseline justify-between">
+          <span id="kpiTotalParticipantes" class="text-3xl font-extrabold text-slate-900">0</span>
+          <span id="kpiUnidadesCount" class="text-xs text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full font-semibold border border-emerald-100">0 Facultades/Unidades</span>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200/80 transition hover:shadow-md">
+        <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Horas Totales Impartidas</div>
+        <div class="mt-2 flex items-baseline justify-between">
+          <span id="kpiTotalHoras" class="text-3xl font-extrabold text-slate-900">0</span>
+          <span class="text-xs text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full font-semibold border border-amber-100">Horas académicas</span>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200/80 transition hover:shadow-md">
+        <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Inversión Ejecutada (USD)</div>
+        <div class="mt-2 flex items-baseline justify-between">
+          <span id="kpiTotalInversion" class="text-3xl font-extrabold text-emerald-600">$0.00</span>
+          <span id="kpiCostoPublicado" class="text-xs text-slate-500 font-medium">Costo pub.: $0.00</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- NAVEGACIÓN DE VISTAS (PESTAÑAS) Y ACCIONES GLOBALES -->
+    <div class="border-b border-slate-200 flex flex-wrap justify-between items-center gap-3">
+      <nav class="flex space-x-2" aria-label="Tabs">
+        <button onclick="switchTab('registro')" id="tabBtn-registro"
+          class="px-4 py-2.5 text-sm font-bold rounded-t-lg border-b-2 border-blue-600 text-blue-600 bg-white shadow-sm">
+          1. Registro de Capacitaciones
+        </button>
+        <button onclick="switchTab('participantes')" id="tabBtn-participantes"
+          class="px-4 py-2.5 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
+          2. Directorio y Expediente Docente
+        </button>
+        <button onclick="switchTab('presupuesto')" id="tabBtn-presupuesto"
+          class="px-4 py-2.5 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
+          3. Control Presupuestario y Áreas PIF
+        </button>
+      </nav>
+
+      <!-- BOTONES DE ACCIÓN GLOBAL -->
+      <div class="flex flex-wrap items-center gap-2 pb-2">
+        <button id="btnNuevaCap" onclick="openCapacitacionModal()"
+          class="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5">
+          <span>+ Nueva Capacitación</span>
+        </button>
+
+        <label id="btnImportarExcel"
+          class="cursor-pointer bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5">
+          <span>Importar Excel (.xlsx)</span>
+          <input type="file" id="excelFileInput" accept=".xlsx,.xls" class="hidden" onchange="importFromExcel(event)" />
+        </label>
+
+        <button onclick="exportToExcel()"
+          class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5">
+          <span>Exportar Excel (.xlsx)</span>
+        </button>
+
+        <button onclick="exportToPDF()"
+          class="bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5">
+          <span>Exportar Reporte PDF</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== VISTA 1: REGISTRO DE CAPACITACIONES ==================== -->
+    <section id="view-registro" class="space-y-4">
+      <!-- BARRA DE BÚSQUEDA Y FILTROS -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200/90 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+        <div class="lg:col-span-2">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Buscar (Evento, Proveedor, Participante, Facultad)</label>
+          <input type="text" id="filterSearch" oninput="renderCapacitaciones()"
+            placeholder="Ej. Blockchain, Socioformativo, Docente 1..."
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Tipo de Capacitación</label>
+          <select id="filterTipo" onchange="renderCapacitaciones()"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+            <option value="">Todos los tipos</option>
+            <option value="Taller">Taller</option>
+            <option value="Curso">Curso</option>
+            <option value="Seminario">Seminario</option>
+            <option value="Diplomado">Diplomado</option>
+            <option value="Congreso">Congreso</option>
+            <option value="Conferencia">Conferencia</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Estado</label>
+          <select id="filterEstado" onchange="renderCapacitaciones()"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+            <option value="">Todos los estados</option>
+            <option value="Finalizada">Finalizada</option>
+            <option value="En curso">En curso</option>
+            <option value="Planificada">Planificada</option>
+            <option value="Cancelada">Cancelada</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Desde Fecha</label>
+          <input type="date" id="filterFechaDesde" onchange="renderCapacitaciones()"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Hasta Fecha</label>
+          <div class="flex gap-1">
+            <input type="date" id="filterFechaHasta" onchange="renderCapacitaciones()"
+              class="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+            <button onclick="clearFilters()" title="Limpiar filtros"
+              class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 rounded-lg text-xs font-bold transition">Limpiar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLA DE CAPACITACIONES -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="table-container overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="bg-slate-900 text-white text-xs uppercase tracking-wider">
+              <tr>
+                <th class="px-3.5 py-3.5 text-left font-bold">Tipo / Estado</th>
+                <th class="px-3.5 py-3.5 text-left font-bold">Nombre del Evento y Proveedor</th>
+                <th class="px-3.5 py-3.5 text-left font-bold">Modalidad / Lugar</th>
+                <th class="px-3.5 py-3.5 text-left font-bold">Fecha y Horario</th>
+                <th class="px-3.5 py-3.5 text-center font-bold">Horas</th>
+                <th class="px-3.5 py-3.5 text-left font-bold">Participantes y Puestos</th>
+                <th class="px-3.5 py-3.5 text-left font-bold">Unidad / Facultad Beneficiada</th>
+                <th class="px-3.5 py-3.5 text-left font-bold">Proyecto / Área PIF</th>
+                <th class="px-3.5 py-3.5 text-right font-bold">Inversión Total</th>
+                <th class="px-3.5 py-3.5 text-center font-bold">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="capacitacionesTableBody" class="divide-y divide-slate-200 bg-white"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VISTA 2: DIRECTORIO Y EXPEDIENTE DOCENTE ==================== -->
+    <section id="view-participantes" class="hidden space-y-4">
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <div class="flex justify-between items-center flex-wrap gap-2 mb-2">
+          <h2 class="text-base font-bold text-slate-900">Consolidado de Participantes y Horas de Formación</h2>
+          <span class="text-xs bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-full border border-blue-200">Desnormalización Automática Activa</span>
+        </div>
+        <p class="text-xs text-slate-500 mb-4">Se desnormalizan automáticamente las participaciones registradas en PostgreSQL para dar seguimiento individual por cada docente, sus cargos, facultades asociadas y cursos aprobados.</p>
+        
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="bg-slate-100 text-slate-700 text-xs uppercase font-bold tracking-wider">
+              <tr>
+                <th class="px-4 py-3 text-left">Nombre del Participante</th>
+                <th class="px-4 py-3 text-left">Puestos / Cargos Registrados</th>
+                <th class="px-4 py-3 text-left">Facultades / Unidades Asociadas</th>
+                <th class="px-4 py-3 text-center">Capacitaciones</th>
+                <th class="px-4 py-3 text-center">Total Horas</th>
+                <th class="px-4 py-3 text-left">Detalle de Eventos Cursados</th>
+              </tr>
+            </thead>
+            <tbody id="participantesTableBody" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VISTA 3: CONTROL PRESUPUESTARIO Y ÁREAS PIF ==================== -->
+    <section id="view-presupuesto" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Ejecución por Código de Proyecto -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+          <h3 class="text-base font-bold text-slate-900 mb-1">Ejecución por Código de Proyecto</h3>
+          <p class="text-xs text-slate-500 mb-4">Control financiero por código presupuestario institucional (IGA004, IGA005 y FOR002).</p>
+          <div id="presupuestoProyectosContainer" class="space-y-4"></div>
+        </div>
+
+        <!-- Inversión por Área del Programa Integral de Formación (PIF) -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+          <h3 class="text-base font-bold text-slate-900 mb-1">Inversión por Área del Programa Integral de Formación (PIF)</h3>
+          <p class="text-xs text-slate-500 mb-4">Cálculo de monto e incidencia porcentual de cada eje formativo institucional.</p>
+          <div id="presupuestoAreasContainer" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- Desglose por Rubro de Gasto -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h3 class="text-base font-bold text-slate-900 mb-3">Desglose Financiero Acumulado por Rubro de Gasto (USD)</h3>
+        <div id="rubrosFinancierosGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== MODAL: CREAR / EDITAR CAPACITACIÓN ==================== -->
+  <div id="capacitacionModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- Encabezado Modal -->
+      <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">UGB · PIF</span>
+          <h2 id="modalTitle" class="text-base sm:text-lg font-bold">Registrar Nueva Capacitación</h2>
+        </div>
+        <button onclick="closeCapacitacionModal()" class="text-slate-400 hover:text-white text-2xl leading-none transition">&times;</button>
+      </div>
+
+      <!-- Formulario -->
+      <form id="capacitacionForm" onsubmit="saveCapacitacion(event)" class="p-6 overflow-y-auto space-y-6 text-sm flex-1">
+        {% csrf_token %}
+        <input type="hidden" id="capId" />
+
+        <!-- Mensajes de error de validación -->
+        <div id="formErrorBox" class="hidden bg-rose-50 border border-rose-300 text-rose-800 rounded-xl p-3.5 text-xs space-y-1"></div>
+
+        <!-- SECCIÓN 1: DATOS DEL EVENTO -->
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-blue-700 border-b border-slate-200 pb-1.5 mb-3">1. Identificación y Modalidad del Evento</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Tipo de Formación *</label>
+              <select id="fTipo" required class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white">
+                <option value="Taller">Taller</option>
+                <option value="Curso">Curso</option>
+                <option value="Seminario">Seminario</option>
+                <option value="Diplomado">Diplomado</option>
+                <option value="Congreso">Congreso</option>
+                <option value="Conferencia">Conferencia</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Localidad *</label>
+              <select id="fLocalidad" required class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white">
+                <option value="Nacional">Nacional</option>
+                <option value="Internacional">Internacional</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Modalidad *</label>
+              <select id="fModalidad" required class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white">
+                <option value="Virtual">Virtual</option>
+                <option value="Presencial">Presencial</option>
+                <option value="Híbrida">Híbrida</option>
+              </select>
+            </div>
+
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre del Evento *</label>
+              <input type="text" id="fNombreEvento" required placeholder="Ej. Taller de Blockchain para docentes"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Estado *</label>
+              <select id="fEstado" required class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white">
+                <option value="Finalizada">Finalizada</option>
+                <option value="En curso">En curso</option>
+                <option value="Planificada">Planificada</option>
+                <option value="Cancelada">Cancelada</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Proveedor / Institución *</label>
+              <input type="text" id="fProveedor" required placeholder="Ej. Innovación y Gestión Académica - UGB"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Contacto / Ponente</label>
+              <input type="text" id="fContacto" placeholder="Ej. Ing. Carlos Roberto Martínez"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Lugar o Plataforma *</label>
+              <input type="text" id="fLugar" required placeholder="Ej. Plataforma Zoom / Canvas"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 2: FECHAS, HORAS Y CLASIFICACIÓN PIF -->
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-blue-700 border-b border-slate-200 pb-1.5 mb-3">2. Programación y Programa Integral de Formación (PIF)</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Fecha de la Formación *</label>
+              <input type="date" id="fFecha" required class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Horario *</label>
+              <input type="text" id="fHorario" required placeholder="Ej. 8:00 AM a 12:00 PM / Martes 6:00 pm a 7:30 pm"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Horas Totales *</label>
+              <input type="number" step="0.5" min="0.5" id="fHoras" required placeholder="24"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Código de Proyecto *</label>
+              <input type="text" id="fCodigoProyecto" required list="listaProyectos" placeholder="Ej. IGA004"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 uppercase" />
+              <datalist id="listaProyectos">
+                <option value="IGA004">Innovación y Gestión Académica - Especialidad y Pedagogía</option>
+                <option value="IGA005">Innovación y Gestión Académica - Enfoque Socioformativo</option>
+                <option value="FOR002">Plan Integral de Formación Docente</option>
+              </datalist>
+            </div>
+
+            <div class="sm:col-span-3">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Área según Programa Integral de Formación *</label>
+              <select id="fAreaPif" required class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white">
+                <option value="Especialidad">Especialidad</option>
+                <option value="Pedagogía">Pedagogía</option>
+                <option value="Básica institucional">Básica institucional</option>
+                <option value="Investigación">Investigación</option>
+                <option value="Integral">Integral (Género e Inclusión)</option>
+                <option value="Virtualidad y Herramientas Tecnológicas">Virtualidad y Herramientas Tecnológicas</option>
+                <option value="Nivel internacional">Nivel internacional</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 3: PARTICIPANTES Y UNIDADES BENEFICIADAS -->
+        <div>
+          <div class="flex justify-between items-center border-b border-slate-200 pb-1.5 mb-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-blue-700">3. Participantes (Asistentes) y Unidades Beneficiadas</h3>
+            <button type="button" onclick="addAsistenteRow()"
+              class="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs px-3 py-1 rounded-lg border border-blue-200 transition">
+              + Agregar Participante
+            </button>
+          </div>
+
+          <div id="asistentesContainer" class="space-y-2 mb-4"></div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Unidades / Facultades Beneficiadas (una por línea o seleccione atajos) *</label>
+            <div class="flex flex-wrap gap-1.5 mb-2">
+              <button type="button" onclick="appendUnidad('Facultad de Ciencia y Tecnología')" class="text-[11px] bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded font-medium transition">+ Ciencia y Tecnología</button>
+              <button type="button" onclick="appendUnidad('Facultad de Ingeniería y Arquitectura')" class="text-[11px] bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded font-medium transition">+ Ingeniería y Arquitectura</button>
+              <button type="button" onclick="appendUnidad('Facultad de Ciencias y Humanidades')" class="text-[11px] bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded font-medium transition">+ Ciencias y Humanidades</button>
+              <button type="button" onclick="appendUnidad('Facultad de Ciencias de la Salud')" class="text-[11px] bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded font-medium transition">+ Ciencias de la Salud</button>
+              <button type="button" onclick="appendUnidad('Facultad de Derecho y Relaciones Internacionales')" class="text-[11px] bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded font-medium transition">+ Derecho y RR.II.</button>
+              <button type="button" onclick="appendUnidad('Facultad de Ciencias Empresariales')" class="text-[11px] bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded font-medium transition">+ Ciencias Empresariales</button>
+              <button type="button" onclick="appendUnidad('Unidad de Educación Virtual')" class="text-[11px] bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded font-medium transition">+ Unidad Educación Virtual</button>
+            </div>
+            <textarea id="fUnidades" rows="3" required placeholder="Facultad de Ciencia y Tecnología"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500"></textarea>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 4: COSTOS E INVERSIÓN FINANCIERA -->
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-blue-700 border-b border-slate-200 pb-1.5 mb-3">4. Desglose de Costos e Inversión (USD)</h3>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Costo Publicado Total ($)</label>
+              <input type="number" step="0.01" min="0" id="fCostoPub" oninput="recalcTotalModal()" value="0"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Honorarios / Inscripción ($)</label>
+              <input type="number" step="0.01" min="0" id="fInvHon" oninput="recalcTotalModal()" value="0"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Inversión Materiales ($)</label>
+              <input type="number" step="0.01" min="0" id="fInvMat" oninput="recalcTotalModal()" value="0"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Viáticos Alimentación ($)</label>
+              <input type="number" step="0.01" min="0" id="fViatAlim" oninput="recalcTotalModal()" value="0"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Gastos Transporte ($)</label>
+              <input type="number" step="0.01" min="0" id="fGastTrans" oninput="recalcTotalModal()" value="0"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Gastos Alojamiento ($)</label>
+              <input type="number" step="0.01" min="0" id="fGastAloj" oninput="recalcTotalModal()" value="0"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </div>
+          </div>
+
+          <div class="mt-3 bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex flex-wrap justify-between items-center">
+            <span class="text-xs text-emerald-900">
+              <strong>Regla de cálculo institucional:</strong> Suma de rubros (Honorarios + Materiales + Alimentación + Transporte + Alojamiento). Si los rubros están en $0.00, se toma el Costo Publicado.
+            </span>
+            <div class="text-lg font-extrabold text-emerald-700">
+              TOTAL: $<span id="fTotalCalculado">0.00</span>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Comentarios / Observaciones</label>
+            <input type="text" id="fComentarios" placeholder="Observaciones adicionales sobre la capacitación..."
+              class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+          </div>
+        </div>
+
+        <!-- Botones de Acción Modal -->
+        <div class="flex justify-end gap-3 pt-3 border-t border-slate-200">
+          <button type="button" onclick="closeCapacitacionModal()"
+            class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-100 transition">
+            Cancelar
+          </button>
+          <button type="submit" id="btnGuardarModal"
+            class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm transition">
+            Guardar en PostgreSQL
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: AUTENTICACIÓN / ROLES ==================== -->
+  <div id="loginModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
+        <h3 class="text-base font-bold">Autenticación y Control de Acceso</h3>
+        <button onclick="closeLoginModal()" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+      <form onsubmit="handleLogin(event)" class="p-6 space-y-4 text-sm">
+        <p class="text-xs text-slate-600">Ingrese sus credenciales de usuario para autenticarse en el sistema:</p>
+        <div id="loginError" class="hidden bg-rose-50 text-rose-700 border border-rose-200 p-2.5 rounded-lg text-xs font-medium"></div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Usuario</label>
+          <input type="text" id="loginUser" required placeholder="Ingrese su usuario" class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Contraseña</label>
+          <input type="password" id="loginPass" required placeholder="Ingrese su contraseña" class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeLoginModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50">Cerrar</button>
+          <button type="submit" id="btnSubmitLogin" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold">Iniciar Sesión</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== LÓGICA JAVASCRIPT CONECTADA A DJANGO / POSTGRESQL ==================== -->
+  <script>
+    // DATOS DESDE EL BACKEND POSTGRESQL
+    let capacitaciones = {{ capacitaciones_json|safe }};
+    const PROYECTOS_PRESUPUESTO = {{ proyectos_json|safe }};
+    const CSRF_TOKEN = '{{ csrf_token }}';
+
+    // Estado del usuario activo (sin exponer contraseñas en el cliente)
+    let currentUser = {
+      username: "{% if request.user.is_authenticated %}{{ request.user.username }}{% else %}admin{% endif %}",
+      nombre: "{% if request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.username }}{% else %}Administrador UGB · PIF{% endif %}",
+      rol: "{% if request.user.username == 'coordinador' %}COORDINADOR{% elif request.user.username == 'consulta' %}CONSULTA{% elif request.user.username == 'ugb_pif' %}UGB_PIF{% else %}ADMIN{% endif %}",
+      label: "{% if request.user.username == 'coordinador' or request.user.username == 'consulta' %}Solo Lectura{% elif request.user.username == 'ugb_pif' %}Edición UGB · PIF{% else %}Edición Total{% endif %}"
+    };
+
+    // 1. INICIALIZACIÓN
+    function initApp() {
+      updateAuthUI();
+      renderAll();
+    }
+
+    function renderAll() {
+      renderCapacitaciones();
+      renderParticipantes();
+      renderPresupuesto();
+    }
+
+    // 2. CONTROL DE ACCESO
+    function openLoginModal() {
+      document.getElementById("loginError").classList.add("hidden");
+      document.getElementById("loginModal").classList.remove("hidden");
+      document.getElementById("loginUser").focus();
+    }
+
+    function closeLoginModal() {
+      document.getElementById("loginModal").classList.add("hidden");
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const u = document.getElementById("loginUser").value.trim().toLowerCase();
+      const p = document.getElementById("loginPass").value.trim();
+      const err = document.getElementById("loginError");
+      const btn = document.getElementById("btnSubmitLogin");
+      err.classList.add("hidden");
+      btn.disabled = true;
+
+      try {
+        const response = await fetch("{% url 'capacitaciones:auth_login' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": CSRF_TOKEN
+          },
+          body: JSON.stringify({ username: u, password: p })
+        });
+        const res = await response.json();
+        if (response.ok && res.status === "success") {
+          currentUser = res.user;
+          updateAuthUI();
+          closeLoginModal();
+          renderCapacitaciones();
+          showAlert(`Sesión iniciada correctamente como: ${currentUser.nombre} (${currentUser.rol})`, "success");
+        } else {
+          err.textContent = res.message || "Credenciales inválidas. Verifique el usuario y la contraseña.";
+          err.classList.remove("hidden");
+        }
+      } catch (ex) {
+        err.textContent = "Error al conectar con el servidor de autenticación.";
+        err.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function canEdit() {
+      // Habilitar edición para UGB · PIF / Administrador.
+      // En el panel del coordinador la edición queda estrictamente deshabilitada (excepto Auditoría).
+      return currentUser.rol === "ADMIN" || currentUser.rol === "UGB_PIF";
+    }
+
+    function canDelete() {
+      return currentUser.rol === "ADMIN" || currentUser.rol === "UGB_PIF";
+    }
+
+    function updateAuthUI() {
+      document.getElementById("currentUserName").textContent = `${currentUser.nombre}`;
+      const badge = document.getElementById("currentUserRoleBadge");
+      badge.textContent = currentUser.label;
+      badge.className = canEdit()
+        ? "bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] uppercase font-bold"
+        : "bg-slate-600 text-slate-200 px-2 py-0.5 rounded text-[10px] uppercase font-bold";
+
+      document.getElementById("btnNuevaCap").classList.toggle("hidden", !canEdit());
+      document.getElementById("btnImportarExcel").classList.toggle("hidden", !canEdit());
+    }
+
+    // 3. FILTRADO Y RENDERIZADO DE CAPACITACIONES
+    function getFilteredCapacitaciones() {
+      const q = document.getElementById("filterSearch").value.trim().toLowerCase();
+      const tipo = document.getElementById("filterTipo").value;
+      const estado = document.getElementById("filterEstado").value;
+      const desde = document.getElementById("filterFechaDesde").value;
+      const hasta = document.getElementById("filterFechaHasta").value;
+
+      return capacitaciones.filter(c => {
+        if (tipo && c.tipo.toLowerCase() !== tipo.toLowerCase()) return false;
+        if (estado && c.estado !== estado) return false;
+        if (desde && c.fecha_inicio < desde) return false;
+        if (hasta && c.fecha_inicio > hasta) return false;
+
+        if (q) {
+          const textPool = [
+            c.codigo,
+            c.nombre_evento,
+            c.proveedor,
+            c.contacto,
+            c.lugar,
+            c.codigo_proyecto,
+            c.area_pif,
+            ...(c.unidades || []),
+            ...(c.asistentes || []).map(a => `${a.nombre} ${a.puesto}`)
+          ].join(" ").toLowerCase();
+          if (!textPool.includes(q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function clearFilters() {
+      document.getElementById("filterSearch").value = "";
+      document.getElementById("filterTipo").value = "";
+      document.getElementById("filterEstado").value = "";
+      document.getElementById("filterFechaDesde").value = "";
+      document.getElementById("filterFechaHasta").value = "";
+      renderCapacitaciones();
+    }
+
+    function renderCapacitaciones() {
+      const list = getFilteredCapacitaciones();
+      const tbody = document.getElementById("capacitacionesTableBody");
+      tbody.innerHTML = "";
+
+      let totalAsistencias = 0;
+      let totalHoras = 0;
+      let totalInversion = 0;
+      let totalCostoPub = 0;
+      let virtuales = 0;
+      let presenciales = 0;
+      const unidadesSet = new Set();
+
+      list.forEach(c => {
+        totalAsistencias += (c.asistentes || []).length;
+        totalHoras += Number(c.horas_totales || 0);
+        totalInversion += Number(c.total_invertido || 0);
+        totalCostoPub += Number(c.costo_publicado || 0);
+        if ((c.modalidad || "").toLowerCase().includes("virtual")) virtuales++;
+        else presenciales++;
+        (c.unidades || []).forEach(u => unidadesSet.add(u));
+      });
+
+      document.getElementById("kpiTotalEventos").textContent = list.length;
+      document.getElementById("kpiModalidadSplit").textContent = `${virtuales} Virtuales / ${presenciales} Presenciales`;
+      document.getElementById("kpiTotalParticipantes").textContent = totalAsistencias;
+      document.getElementById("kpiUnidadesCount").textContent = `${unidadesSet.size} Facultades/Unidades`;
+      document.getElementById("kpiTotalHoras").textContent = totalHoras;
+      document.getElementById("kpiTotalInversion").textContent = `$${totalInversion.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      document.getElementById("kpiCostoPublicado").textContent = `Costo pub.: $${totalCostoPub.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="px-6 py-12 text-center text-slate-400 font-medium">No se encontraron capacitaciones con los criterios seleccionados.</td></tr>`;
+        return;
+      }
+
+      list.forEach(c => {
+        const estadoBadge = {
+          "Finalizada": "bg-emerald-100 text-emerald-800 border-emerald-200",
+          "En curso": "bg-blue-100 text-blue-800 border-blue-200",
+          "Planificada": "bg-amber-100 text-amber-800 border-amber-200",
+          "Cancelada": "bg-rose-100 text-rose-800 border-rose-200"
+        }[c.estado] || "bg-slate-100 text-slate-800 border-slate-200";
+
+        const asistentesHtml = (c.asistentes || []).map(a =>
+          `<div class="text-xs leading-snug mb-1"><span class="font-bold text-slate-800">${escapeHtml(a.nombre)}</span> <span class="text-slate-500">(${escapeHtml(a.puesto)})</span></div>`
+        ).join("");
+
+        const unidadesHtml = (c.unidades || []).map(u =>
+          `<span class="inline-block bg-slate-100 text-slate-700 text-[11px] font-semibold px-2 py-0.5 rounded mr-1 mb-1 border border-slate-200">${escapeHtml(u)}</span>`
+        ).join("");
+
+        const accionesHtml = canEdit() ? `
+          <div class="flex items-center justify-center gap-1.5">
+            <button onclick="openCapacitacionModal('${c.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1 rounded text-xs font-bold border border-blue-200 transition">Editar</button>
+            ${canDelete() ? `<button onclick="deleteCapacitacion('${c.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 px-2.5 py-1 rounded text-xs font-bold border border-rose-200 transition">Eliminar</button>` : ""}
+          </div>
+        ` : `<span class="text-xs text-slate-400 italic">Solo lectura</span>`;
+
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50/80 transition align-top";
+        tr.innerHTML = `
+          <td class="px-3.5 py-3 whitespace-nowrap">
+            <div class="font-bold text-slate-900">${escapeHtml(c.tipo)}</div>
+            <span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${estadoBadge}">${escapeHtml(c.estado)}</span>
+          </td>
+          <td class="px-3.5 py-3 max-w-xs">
+            <div class="font-bold text-slate-900 leading-snug">${escapeHtml(c.nombre_evento)}</div>
+            <div class="text-[11px] text-slate-500 mt-1"><strong>Proveedor:</strong> ${escapeHtml(c.proveedor)}</div>
+            ${c.contacto ? `<div class="text-[11px] text-slate-500"><strong>Contacto:</strong> ${escapeHtml(c.contacto)}</div>` : ""}
+            ${c.codigo ? `<div class="text-[10px] text-blue-600 font-mono mt-0.5">${escapeHtml(c.codigo)}</div>` : ""}
+          </td>
+          <td class="px-3.5 py-3 whitespace-nowrap text-xs">
+            <span class="font-bold text-slate-800">${escapeHtml(c.modalidad)}</span> · <span class="text-slate-500">${escapeHtml(c.localidad)}</span>
+            <div class="text-slate-600 mt-1">${escapeHtml(c.lugar)}</div>
+          </td>
+          <td class="px-3.5 py-3 text-xs">
+            <div class="font-bold text-slate-800">${escapeHtml(c.fecha_inicio)}</div>
+            <div class="text-slate-500 mt-0.5">${escapeHtml(c.horario || "")}</div>
+          </td>
+          <td class="px-3.5 py-3 text-center font-extrabold text-slate-800">${c.horas_totales} h</td>
+          <td class="px-3.5 py-3 min-w-[200px]">${asistentesHtml || '<span class="text-xs text-slate-400 italic">Sin asistentes</span>'}</td>
+          <td class="px-3.5 py-3 max-w-xs">${unidadesHtml || '<span class="text-xs text-slate-400 italic">General</span>'}</td>
+          <td class="px-3.5 py-3 whitespace-nowrap text-xs">
+            <span class="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-200">${escapeHtml(c.codigo_proyecto)}</span>
+            <div class="text-slate-600 mt-1 font-semibold">${escapeHtml(c.area_pif)}</div>
+          </td>
+          <td class="px-3.5 py-3 text-right whitespace-nowrap">
+            <div class="font-extrabold text-emerald-700 text-sm">$${Number(c.total_invertido).toFixed(2)}</div>
+            <div class="text-[11px] text-slate-400">Pub: $${Number(c.costo_publicado).toFixed(2)}</div>
+          </td>
+          <td class="px-3.5 py-3 text-center whitespace-nowrap">${accionesHtml}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 4. DIRECTORIO Y EXPEDIENTE DOCENTE
+    function renderParticipantes() {
+      const map = new Map();
+      capacitaciones.forEach(c => {
+        (c.asistentes || []).forEach(a => {
+          const key = a.nombre.trim();
+          if (!map.has(key)) {
+            map.set(key, {
+              nombre: key,
+              puestos: new Set(),
+              unidades: new Set(),
+              eventos: [],
+              horas: 0
+            });
+          }
+          const entry = map.get(key);
+          if (a.puesto) entry.puestos.add(a.puesto);
+          (c.unidades || []).forEach(u => entry.unidades.add(u));
+          entry.eventos.push(`${c.nombre_evento} (${c.fecha_inicio}, ${c.horas_totales}h - ${c.area_pif})`);
+          entry.horas += Number(c.horas_totales || 0);
+        });
+      });
+
+      const tbody = document.getElementById("participantesTableBody");
+      tbody.innerHTML = "";
+      if (map.size === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400 font-medium">No hay participantes registrados.</td></tr>`;
+        return;
+      }
+
+      Array.from(map.values()).forEach(p => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50 transition";
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-bold text-slate-900">${escapeHtml(p.nombre)}</td>
+          <td class="px-4 py-3 text-xs text-slate-700 font-medium">${Array.from(p.puestos).map(escapeHtml).join("<br>")}</td>
+          <td class="px-4 py-3 text-xs text-slate-600">${Array.from(p.unidades).map(escapeHtml).join("<br>")}</td>
+          <td class="px-4 py-3 text-center font-bold text-blue-700">${p.eventos.length}</td>
+          <td class="px-4 py-3 text-center font-extrabold text-emerald-700">${p.horas} h</td>
+          <td class="px-4 py-3 text-xs text-slate-600">${p.eventos.map(e => `• ${escapeHtml(e)}`).join("<br>")}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 5. CONTROL PRESUPUESTARIO Y ÁREAS PIF
+    function renderPresupuesto() {
+      const proyContainer = document.getElementById("presupuestoProyectosContainer");
+      const areasContainer = document.getElementById("presupuestoAreasContainer");
+      const rubrosGrid = document.getElementById("rubrosFinancierosGrid");
+
+      const gastoPorProyecto = {};
+      const gastoPorArea = {};
+      let totCostoPub = 0, totHon = 0, totMat = 0, totAlim = 0, totTrans = 0, totAloj = 0, totGen = 0;
+
+      capacitaciones.forEach(c => {
+        if (c.estado === "Cancelada") return;
+        const cod = c.codigo_proyecto || "SIN-CODIGO";
+        gastoPorProyecto[cod] = (gastoPorProyecto[cod] || 0) + Number(c.total_invertido || 0);
+
+        const area = c.area_pif || "General";
+        gastoPorArea[area] = (gastoPorArea[area] || 0) + Number(c.total_invertido || 0);
+
+        totCostoPub += Number(c.costo_publicado || 0);
+        totHon += Number(c.inv_honorarios || 0);
+        totMat += Number(c.inv_materiales || 0);
+        totAlim += Number(c.viaticos_alimentacion || 0);
+        totTrans += Number(c.gastos_transporte || 0);
+        totAloj += Number(c.gastos_alojamiento || 0);
+        totGen += Number(c.total_invertido || 0);
+      });
+
+      const allCodes = new Set([...Object.keys(PROYECTOS_PRESUPUESTO), ...Object.keys(gastoPorProyecto)]);
+      proyContainer.innerHTML = "";
+      allCodes.forEach(code => {
+        const meta = PROYECTOS_PRESUPUESTO[code] || { nombre: "Proyecto Registrado", aprobado: 2000.00 };
+        const ejecutado = gastoPorProyecto[code] || 0;
+        const disponible = meta.aprobado - ejecutado;
+        const pct = Math.min(100, Math.round((ejecutado / meta.aprobado) * 100));
+
+        proyContainer.innerHTML += `
+          <div class="border border-slate-200 rounded-xl p-3.5 bg-slate-50">
+            <div class="flex justify-between items-center text-sm font-bold">
+              <span>${escapeHtml(code)} · ${escapeHtml(meta.nombre)}</span>
+              <span class="${disponible >= 0 ? 'text-emerald-700' : 'text-rose-700'}">Disponible: $${disponible.toFixed(2)}</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-1 flex justify-between font-medium">
+              <span>Monto Aprobado: $${meta.aprobado.toFixed(2)}</span>
+              <span>Invertido: $${ejecutado.toFixed(2)} (${pct}%)</span>
+            </div>
+            <div class="w-full bg-slate-200 h-2.5 rounded-full mt-2 overflow-hidden">
+              <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+      });
+
+      areasContainer.innerHTML = "";
+      Object.entries(gastoPorArea).forEach(([area, monto]) => {
+        const pct = totGen > 0 ? ((monto / totGen) * 100).toFixed(1) : "0.0";
+        areasContainer.innerHTML += `
+          <div class="flex justify-between items-center border-b border-slate-100 pb-2 text-sm">
+            <span class="font-semibold text-slate-700">${escapeHtml(area)}</span>
+            <div class="text-right">
+              <span class="font-bold text-slate-900">$${monto.toFixed(2)}</span>
+              <span class="ml-2 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold border border-blue-100">${pct}%</span>
+            </div>
+          </div>
+        `;
+      });
+
+      const rubros = [
+        { label: "Costo Publicado Ref.", val: totCostoPub },
+        { label: "Honorarios / Inscripción", val: totHon },
+        { label: "Materiales y Didácticos", val: totMat },
+        { label: "Viáticos Alimentación", val: totAlim },
+        { label: "Gastos Transporte", val: totTrans },
+        { label: "Gastos Alojamiento", val: totAloj }
+      ];
+      rubrosGrid.innerHTML = rubros.map(r => `
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+          <div class="text-[11px] text-slate-500 font-bold uppercase">${r.label}</div>
+          <div class="text-lg font-black text-slate-800 mt-1">$${r.val.toFixed(2)}</div>
+        </div>
+      `).join("");
+    }
+
+    // 6. FORMULARIO MODAL Y VALIDACIÓN
+    function addAsistenteRow(nombre = "", puesto = "") {
+      const container = document.getElementById("asistentesContainer");
+      const div = document.createElement("div");
+      div.className = "flex gap-2 items-center asistente-row";
+      div.innerHTML = `
+        <input type="text" placeholder="Nombre completo del participante (Ej. Docente 1)" value="${escapeHtml(nombre)}" required class="asist-nombre flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500" />
+        <input type="text" placeholder="Puesto / Cargo (Ej. Docente tiempo completo)" value="${escapeHtml(puesto)}" required class="asist-puesto flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500" />
+        <button type="button" onclick="this.parentElement.remove()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition">Quitar</button>
+      `;
+      container.appendChild(div);
+    }
+
+    function appendUnidad(nombreUnidad) {
+      const ta = document.getElementById("fUnidades");
+      const current = ta.value.split("\n").map(s => s.trim()).filter(Boolean);
+      if (!current.includes(nombreUnidad)) {
+        current.push(nombreUnidad);
+        ta.value = current.join("\n");
+      }
+    }
+
+    function recalcTotalModal() {
+      const costoPub = parseFloat(document.getElementById("fCostoPub").value) || 0;
+      const hon = parseFloat(document.getElementById("fInvHon").value) || 0;
+      const mat = parseFloat(document.getElementById("fInvMat").value) || 0;
+      const alim = parseFloat(document.getElementById("fViatAlim").value) || 0;
+      const trans = parseFloat(document.getElementById("fGastTrans").value) || 0;
+      const aloj = parseFloat(document.getElementById("fGastAloj").value) || 0;
+
+      const sumaRubros = hon + mat + alim + trans + aloj;
+      const total = sumaRubros > 0 ? sumaRubros : costoPub;
+      document.getElementById("fTotalCalculado").textContent = total.toFixed(2);
+      return total;
+    }
+
+    function openCapacitacionModal(editId = null) {
+      if (!canEdit()) {
+        showAlert("Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).", "error");
+        return;
+      }
+      document.getElementById("formErrorBox").classList.add("hidden");
+      const container = document.getElementById("asistentesContainer");
+      container.innerHTML = "";
+
+      if (editId) {
+        const c = capacitaciones.find(x => String(x.id) === String(editId));
+        if (!c) return;
+        document.getElementById("modalTitle").textContent = `Editar Capacitación: ${c.codigo || c.nombre_evento}`;
+        document.getElementById("capId").value = c.id;
+        document.getElementById("fTipo").value = c.tipo;
+        document.getElementById("fLocalidad").value = c.localidad;
+        document.getElementById("fModalidad").value = c.modalidad;
+        document.getElementById("fNombreEvento").value = c.nombre_evento;
+        document.getElementById("fEstado").value = c.estado;
+        document.getElementById("fProveedor").value = c.proveedor;
+        document.getElementById("fContacto").value = c.contacto || "";
+        document.getElementById("fLugar").value = c.lugar;
+        document.getElementById("fFecha").value = c.fecha_inicio;
+        document.getElementById("fHorario").value = c.horario || "";
+        document.getElementById("fHoras").value = c.horas_totales;
+        document.getElementById("fCodigoProyecto").value = c.codigo_proyecto;
+        document.getElementById("fAreaPif").value = c.area_pif;
+        document.getElementById("fUnidades").value = (c.unidades || []).join("\n");
+        document.getElementById("fCostoPub").value = c.costo_publicado || 0;
+        document.getElementById("fInvHon").value = c.inv_honorarios || 0;
+        document.getElementById("fInvMat").value = c.inv_materiales || 0;
+        document.getElementById("fViatAlim").value = c.viaticos_alimentacion || 0;
+        document.getElementById("fGastTrans").value = c.gastos_transporte || 0;
+        document.getElementById("fGastAloj").value = c.gastos_alojamiento || 0;
+        document.getElementById("fComentarios").value = c.comentarios || "";
+        (c.asistentes || []).forEach(a => addAsistenteRow(a.nombre, a.puesto));
+      } else {
+        document.getElementById("modalTitle").textContent = "Registrar Nueva Capacitación";
+        document.getElementById("capacitacionForm").reset();
+        document.getElementById("capId").value = "";
+        document.getElementById("fFecha").value = new Date().toISOString().slice(0, 10);
+        addAsistenteRow("", "");
+      }
+      recalcTotalModal();
+      document.getElementById("capacitacionModal").classList.remove("hidden");
+    }
+
+    function closeCapacitacionModal() {
+      document.getElementById("capacitacionModal").classList.add("hidden");
+    }
+
+    async function saveCapacitacion(e) {
+      e.preventDefault();
+      if (!canEdit()) {
+        showAlert("Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).", "error");
+        return;
+      }
+      const errors = [];
+      const editId = document.getElementById("capId").value || null;
+
+      const nombreEvento = document.getElementById("fNombreEvento").value.trim();
+      const proveedor = document.getElementById("fProveedor").value.trim();
+      const lugar = document.getElementById("fLugar").value.trim();
+      const fecha = document.getElementById("fFecha").value;
+      const horario = document.getElementById("fHorario").value.trim();
+      const horas = parseFloat(document.getElementById("fHoras").value);
+      const codProy = document.getElementById("fCodigoProyecto").value.trim().toUpperCase();
+
+      if (!nombreEvento || nombreEvento.length < 5) {
+        errors.push("• El nombre del evento es obligatorio y debe tener al menos 5 caracteres.");
+      }
+      if (!fecha || isNaN(Date.parse(fecha))) {
+        errors.push("• Debe ingresar una fecha de formación válida.");
+      }
+      if (isNaN(horas) || horas <= 0) {
+        errors.push("• Las horas totales de duración deben ser un número mayor que cero.");
+      }
+
+      const rows = document.querySelectorAll("#asistentesContainer .asistente-row");
+      const asistentes = [];
+      const nombresVistos = new Set();
+      rows.forEach(r => {
+        const nom = r.querySelector(".asist-nombre").value.trim();
+        const pue = r.querySelector(".asist-puesto").value.trim();
+        if (nom) {
+          const clave = nom.toLowerCase();
+          if (nombresVistos.has(clave)) {
+            errors.push(`• El participante "${nom}" está duplicado en este mismo evento.`);
+          }
+          nombresVistos.add(clave);
+          asistentes.push({ nombre: nom, puesto: pue || "Docente" });
+        }
+      });
+
+      if (asistentes.length === 0) {
+        errors.push("• Debe registrar al menos un participante asistente a la formación.");
+      }
+
+      const unidades = document.getElementById("fUnidades").value
+        .split("\n")
+        .map(u => u.trim())
+        .filter(Boolean);
+      if (unidades.length === 0) {
+        errors.push("• Debe especificar al menos una Unidad o Facultad beneficiada.");
+      }
+
+      if (errors.length > 0) {
+        const box = document.getElementById("formErrorBox");
+        box.innerHTML = `<div class="font-bold mb-1">Por favor corrija los siguientes errores:</div>` + errors.join("<br>");
+        box.classList.remove("hidden");
+        return;
+      }
+
+      const payload = {
+        id: editId,
+        tipo: document.getElementById("fTipo").value,
+        proveedor,
+        contacto: document.getElementById("fContacto").value.trim(),
+        localidad: document.getElementById("fLocalidad").value,
+        modalidad: document.getElementById("fModalidad").value,
+        nombre_evento: nombreEvento,
+        lugar,
+        fecha_inicio: fecha,
+        horario,
+        horas_totales: horas,
+        asistentes,
+        unidades,
+        codigo_proyecto: codProy,
+        area_pif: document.getElementById("fAreaPif").value,
+        estado: document.getElementById("fEstado").value,
+        costo_publicado: parseFloat(document.getElementById("fCostoPub").value) || 0,
+        inv_honorarios: parseFloat(document.getElementById("fInvHon").value) || 0,
+        inv_materiales: parseFloat(document.getElementById("fInvMat").value) || 0,
+        viaticos_alimentacion: parseFloat(document.getElementById("fViatAlim").value) || 0,
+        gastos_transporte: parseFloat(document.getElementById("fGastTrans").value) || 0,
+        gastos_alojamiento: parseFloat(document.getElementById("fGastAloj").value) || 0,
+        total_invertido: recalcTotalModal(),
+        comentarios: document.getElementById("fComentarios").value.trim()
+      };
+
+      const btnSubmit = document.getElementById("btnGuardarModal");
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = "Guardando en PostgreSQL...";
+
+      try {
+        const response = await fetch("{% url 'capacitaciones:guardar_pif' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": CSRF_TOKEN,
+            "X-User-Role": currentUser.rol
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const resData = await response.json();
+        if (response.ok && resData.status === "success") {
+          const savedCap = resData.data;
+          if (editId) {
+            const idx = capacitaciones.findIndex(x => String(x.id) === String(editId));
+            if (idx !== -1) capacitaciones[idx] = savedCap;
+          } else {
+            capacitaciones.unshift(savedCap);
+          }
+
+          showAlert(resData.message || `Capacitación "${savedCap.nombre_evento}" guardada con éxito en PostgreSQL.`, "success");
+          closeCapacitacionModal();
+          renderAll();
+        } else {
+          showAlert("Error al guardar: " + (resData.message || "Error desconocido en el servidor."), "error");
+        }
+      } catch (err) {
+        showAlert("Error de conexión al servidor: " + err.message, "error");
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = "Guardar en PostgreSQL";
+      }
+    }
+
+    async function deleteCapacitacion(id) {
+      if (!canDelete()) {
+        showAlert("Acceso denegado: El rol Coordinador tiene la edición y eliminación deshabilitadas.", "error");
+        return;
+      }
+      const target = capacitaciones.find(x => String(x.id) === String(id));
+      if (!target) return;
+      if (!confirm(`¿Está seguro de eliminar "${target.nombre_evento}" de PostgreSQL? Esta acción no se puede deshacer.`)) return;
+
+      try {
+        const response = await fetch(`/capacitaciones/api/eliminar-pif/${id}/`, {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": CSRF_TOKEN,
+            "X-User-Role": currentUser.rol
+          }
+        });
+        const resData = await response.json();
+        if (response.ok && resData.status === "success") {
+          capacitaciones = capacitaciones.filter(x => String(x.id) !== String(id));
+          renderAll();
+          showAlert("Capacitación eliminada correctamente de PostgreSQL.", "success");
+        } else {
+          showAlert("Error al eliminar: " + (resData.message || "Error en el servidor."), "error");
+        }
+      } catch (err) {
+        showAlert("Error de conexión: " + err.message, "error");
+      }
+    }
+
+    // 7. IMPORTACIÓN Y EXPORTACIÓN EXCEL (.XLSX) Y PDF
+    async function importFromExcel(event) {
+      if (!canEdit()) {
+        showAlert("Acceso denegado: El rol Coordinador tiene deshabilitada la importación/edición.", "error");
+        return;
+      }
+      const file = event.target.files[0];
+      if (!file) return;
+
+      showAlert(`Procesando archivo "${file.name}" para carga en PostgreSQL...`, "success");
+      const formData = new FormData();
+      formData.append("excel_file", file);
+
+      try {
+        const response = await fetch("{% url 'capacitaciones:importar_excel_pif' %}", {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": CSRF_TOKEN,
+            "X-User-Role": currentUser.rol
+          },
+          body: formData
+        });
+        const resData = await response.json();
+        if (response.ok && resData.status === "success") {
+          showAlert(resData.message, "success");
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          showAlert("Error en la importación: " + (resData.message || "Error al procesar el archivo."), "error");
+        }
+      } catch (err) {
+        showAlert("Error al conectar con el servidor: " + err.message, "error");
+      }
+      event.target.value = "";
+    }
+
+    function exportToExcel() {
+      // Descarga oficial del reporte generado por el backend PostgreSQL
+      window.location.href = "{% url 'capacitaciones:exportar_excel_pif' %}";
+      showAlert("Generando y descargando archivo Excel oficial con las 23 columnas institucionales...", "success");
+    }
+
+    function exportToPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
+      const list = getFilteredCapacitaciones();
+
+      doc.setFontSize(14);
+      doc.text("UNIVERSIDAD GERARDO BARRIOS — SISTEMA DE GESTIÓN DE CAPACITACIONES", 40, 35);
+      doc.setFontSize(10);
+      doc.text(`Reporte Oficial de Formaciones (PIF) | Fecha: ${new Date().toLocaleDateString('es-SV')} | Registros: ${list.length}`, 40, 52);
+
+      const body = list.map(c => [
+        `${c.tipo}\n(${c.estado})`,
+        c.nombre_evento,
+        `${c.proveedor}\n(${c.modalidad})`,
+        `${c.fecha_inicio}\n${c.horas_totales} h`,
+        (c.asistentes || []).map(a => `${a.nombre} (${a.puesto})`).join("\n"),
+        (c.unidades || []).join("\n"),
+        `${c.codigo_proyecto}\n${c.area_pif}`,
+        `$${Number(c.total_invertido).toFixed(2)}`
+      ]);
+
+      doc.autoTable({
+        startY: 65,
+        head: [["Tipo/Estado", "Nombre del Evento", "Proveedor / Modalidad", "Fecha / Horas", "Participantes", "Facultades / Unidades", "Proyecto / Área", "Total ($)"]],
+        body,
+        styles: { fontSize: 8, cellPadding: 4 },
+        headStyles: { fillColor: [15, 23, 42] }
+      });
+
+      doc.save("Reporte_Capacitaciones_UGB_PIF.pdf");
+      showAlert("Reporte oficial en PDF generado y descargado exitosamente.", "success");
+    }
+
+    // 8. INTERFAZ Y PESTAÑAS
+    function switchTab(tab) {
+      ["registro", "participantes", "presupuesto"].forEach(t => {
+        document.getElementById(`view-${t}`).classList.toggle("hidden", t !== tab);
+        const btn = document.getElementById(`tabBtn-${t}`);
+        if (t === tab) {
+          btn.className = "px-4 py-2.5 text-sm font-bold rounded-t-lg border-b-2 border-blue-600 text-blue-600 bg-white shadow-sm";
+        } else {
+          btn.className = "px-4 py-2.5 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition";
+        }
+      });
+    }
+
+    function showAlert(msg, type = "success") {
+      const banner = document.getElementById("alertBanner");
+      const text = document.getElementById("alertMessage");
+      const icon = document.getElementById("alertIcon");
+      text.textContent = msg;
+      if (type === "success") {
+        banner.className = "rounded-xl p-4 border text-sm font-medium flex justify-between items-center shadow-sm bg-emerald-50 border-emerald-300 text-emerald-900";
+        icon.textContent = "✓";
+      } else {
+        banner.className = "rounded-xl p-4 border text-sm font-medium flex justify-between items-center shadow-sm bg-rose-50 border-rose-300 text-rose-900";
+        icon.textContent = "⚠";
+      }
+      banner.classList.remove("hidden");
+    }
+
+    function hideAlert() {
+      document.getElementById("alertBanner").classList.add("hidden");
+    }
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    window.addEventListener("DOMContentLoaded", initApp);
+  </script>
+</body>
+
+</html>

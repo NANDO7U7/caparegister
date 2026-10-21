@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Duplicar Capacitación — SIGECAP{% endblock %}
+{% block page_title %}Duplicar / Clonar Capacitación{% endblock %}
+{% block page_subtitle %}Crear rápidamente una nueva edición basada en: {{ original.codigo }} - {{ original.nombre }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 920px; margin: 0 auto;">
+    <form method="POST">
+        {% csrf_token %}
+        
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-secondary);">content_copy</span>
+                <span>Parámetros de la Nueva Edición</span>
+            </div>
+            <a href="{% url 'capacitaciones:detalle' original.id %}" class="btn btn-outline">
+                <span class="material-symbols-outlined">arrow_back</span>
+                <span>Volver</span>
+            </a>
+        </div>
+
+        <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 20px; font-size: 13px; color: #0369a1;">
+            💡 <strong>Modo Clonación Rápida:</strong> Se copiarán automáticamente el área formativa, modalidad, proveedor, objetivos, carga horaria y facultades destinatarias. Solo ajusta las fechas y el código.
+        </div>
+
+        <div class="form-grid" style="margin-bottom: 24px;">
+            <div class="form-group">
+                <label for="codigo">Nuevo Código *</label>
+                <input type="text" id="codigo" name="codigo" required class="form-control" value="{{ nuevo_codigo }}">
+            </div>
+
+            <div class="form-group" style="grid-column: span 2;">
+                <label for="nombre">Título de la Nueva Edición *</label>
+                <input type="text" id="nombre" name="nombre" required class="form-control" value="{{ original.nombre }} (Edición {{ CURRENT_YEAR }})">
+            </div>
+
+            <div class="form-group">
+                <label for="fecha_inicio">Nueva Fecha de Inicio *</label>
+                <input type="date" id="fecha_inicio" name="fecha_inicio" required class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label for="fecha_fin">Nueva Fecha de Finalización *</label>
+                <input type="date" id="fecha_fin" name="fecha_fin" required class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label>Horas de Duración</label>
+                <input type="text" readonly disabled class="form-control" value="{{ original.horas_duracion }} Horas (Copiado)">
+            </div>
+
+            <div class="form-group">
+                <label>Área de Formación</label>
+                <input type="text" readonly disabled class="form-control" value="{{ original.area_formacion.nombre }} (Copiado)">
+            </div>
+
+            <div class="form-group">
+                <label>Tipo y Modalidad</label>
+                <input type="text" readonly disabled class="form-control" value="{{ original.tipo_modalidad.tipo }} — {{ original.tipo_modalidad.modalidad }} (Copiado)">
+            </div>
+
+            <div class="form-group">
+                <label>Facilitador / Proveedor</label>
+                <input type="text" readonly disabled class="form-control" value="{{ original.proveedor.nombre|default:'Facilitador Interno' }} (Copiado)">
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border-subtle); padding-top: 20px;">
+            <a href="{% url 'capacitaciones:detalle' original.id %}" class="btn btn-outline">Cancelar</a>
+            <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">
+                <span class="material-symbols-outlined">content_copy</span>
+                <span>Confirmar y Crear Nueva Capacitación</span>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+
+{% block title %}Matriz de Seguimiento Docente — SIGECAP{% endblock %}
+{% block page_title %}Matriz y Matrícula Docente{% endblock %}
+{% block page_subtitle %}Seguimiento al Plan Integral de Formación y Trayectoria de Competencias por Docente{% endblock %}
+
+{% block header_buttons %}
+<a href="{% url 'personas:lista' %}" class="btn btn-outline">
+    <span class="material-symbols-outlined">badge</span>
+    <span>Padrón General</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros y Búsqueda de la Matriz -->
+<div class="card" style="padding: 16px 24px; margin-bottom: 20px;">
+    <form method="GET" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 240px;">
+            <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Buscar docente por nombre o código...">
+        </div>
+
+        <div style="width: 220px;">
+            <select name="facultad" class="form-control">
+                <option value="">Todas las Facultades</option>
+                {% for f in facultades %}
+                <option value="{{ f.id }}" {% if facultad_filtro == f.id|stringformat:"s" %}selected{% endif %}>{{ f.codigo }} - {{ f.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="width: 180px;">
+            <select name="contrato" class="form-control">
+                <option value="">Tipo de Contrato</option>
+                <option value="Tiempo Completo" {% if contrato_filtro == 'Tiempo Completo' %}selected{% endif %}>Tiempo Completo</option>
+                <option value="Hora Clase" {% if contrato_filtro == 'Hora Clase' %}selected{% endif %}>Hora Clase</option>
+                <option value="Medio Tiempo" {% if contrato_filtro == 'Medio Tiempo' %}selected{% endif %}>Medio Tiempo</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="padding: 10px 18px;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">filter_alt</span>
+            <span>Filtrar</span>
+        </button>
+
+        {% if query or facultad_filtro or contrato_filtro %}
+        <a href="{% url 'personas:matriz_docente' %}" class="btn btn-outline" style="padding: 10px 14px;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">restart_alt</span>
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Leyenda y Acciones de Matrícula -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; gap: 16px; align-items: center; font-size: 12px;">
+        <span style="font-weight: 600; color: var(--text-secondary);">Leyenda de Estados:</span>
+        <span class="badge badge-finalizada"><span class="material-symbols-outlined" style="font-size: 14px;">check</span> Aprobado / Concluido</span>
+        <span class="badge badge-en-curso"><span class="material-symbols-outlined" style="font-size: 14px;">hourglass_top</span> En Curso</span>
+        <span class="badge badge-planificada"><span class="material-symbols-outlined" style="font-size: 14px;">remove</span> Pendiente / No cursado</span>
+    </div>
+
+    <div style="display: flex; gap: 8px;">
+        <a href="{% url 'personas:crear' %}" class="btn btn-secondary" style="font-size: 12px; padding: 6px 14px;">
+            <span class="material-symbols-outlined" style="font-size: 16px;">person_add</span>
+            <span>+ Nuevo Docente</span>
+        </a>
+        <button type="button" class="btn btn-primary" onclick="abrirModalMatricula('', '', 'Pendiente', '')" style="font-size: 12px; padding: 6px 14px;">
+            <span class="material-symbols-outlined" style="font-size: 16px;">edit_calendar</span>
+            <span>Registrar / Actualizar Matrícula</span>
+        </button>
+    </div>
+</div>
+
+<!-- Tabla Cuadrícula de la Matriz Docente (Estilo Excel Institucional) -->
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div class="table-responsive" style="max-height: 600px; overflow: auto;">
+        <table class="data-table" style="font-size: 12px; border-collapse: separate; border-spacing: 0;">
+            <thead style="position: sticky; top: 0; z-index: 30; background: #f8fafc;">
+                <tr>
+                    <th style="position: sticky; left: 0; z-index: 35; background: #f1f5f9; min-width: 220px; box-shadow: 2px 0 5px rgba(0,0,0,0.05);">
+                        Docente / Colaborador
+                    </th>
+                    <th style="min-width: 100px;">Facultad</th>
+                    <th style="min-width: 110px;">Contrato</th>
+                    <th style="min-width: 110px;">Grado</th>
+                    <th style="min-width: 90px; text-align: center;">% Avance</th>
+                    
+                    {% for comp in competencias %}
+                    <th style="min-width: 160px; text-align: center; border-left: 1px solid var(--border-light); background: #f8fafc; font-size: 11px;" title="{{ comp.nombre }} ({{ comp.categoria }})">
+                        <div style="font-weight: 700; color: var(--color-primary); line-height: 1.2;">{{ comp.nombre|truncatechars:38 }}</div>
+                        <small style="color: var(--text-muted); font-size: 10px; font-weight: 500;">{{ comp.categoria|truncatechars:20 }}</small>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in matriz_filas %}
+                <tr>
+                    <!-- Columna fija Docente -->
+                    <td style="position: sticky; left: 0; z-index: 20; background: #ffffff; box-shadow: 2px 0 5px rgba(0,0,0,0.05);">
+                        <a href="{% url 'personas:ficha' fila.docente.id %}" style="font-weight: 700; color: var(--color-primary); text-decoration: none;">
+                            {{ fila.docente.nombre_completo }}
+                        </a>
+                        <br><small style="color: var(--text-muted); font-size: 10px;">{{ fila.docente.codigo_empleado }}</small>
+                    </td>
+                    <td>{{ fila.docente.facultad.codigo|default:"-" }}</td>
+                    <td><small>{{ fila.docente.tipo_contrato|default:"Tiempo Completo" }}</small></td>
+                    <td><small>{{ fila.docente.grado_academico|default:"-" }}</small></td>
+                    
+                    <!-- Barra de % Avance -->
+                    <td style="text-align: center;">
+                        <span style="font-weight: 700; color: {% if fila.pct_avance > 60 %}var(--color-success){% elif fila.pct_avance > 30 %}var(--color-secondary){% else %}var(--text-muted){% endif %};">
+                            {{ fila.pct_avance }}%
+                        </span>
+                    </td>
+
+                    <!-- Celdas de Competencias -->
+                    {% for celda in fila.celdas %}
+                    <td style="text-align: center; border-left: 1px solid var(--border-subtle); padding: 8px 6px;">
+                        {% if celda.matricula %}
+                            {% if celda.matricula.estado == 'Aprobado' %}
+                                <div style="cursor: pointer;" onclick="abrirModalMatricula('{{ fila.docente.id }}', '{{ celda.competencia.id }}', 'Aprobado', '{{ celda.matricula.fecha_completado|date:'Y-m-d' }}')" title="Aprobado el {{ celda.matricula.fecha_completado|date:'d/m/Y'|default:'S/F' }}">
+                                    <span class="badge badge-finalizada" style="font-size: 10px; padding: 2px 6px;">
+                                        ✓ {% if celda.matricula.fecha_completado %}{{ celda.matricula.fecha_completado|date:"d/m/y" }}{% else %}Completado{% endif %}
+                                    </span>
+                                </div>
+                            {% elif celda.matricula.estado == 'En Curso' %}
+                                <div style="cursor: pointer;" onclick="abrirModalMatricula('{{ fila.docente.id }}', '{{ celda.competencia.id }}', 'En Curso', '')" title="En Curso">
+                                    <span class="badge badge-en-curso" style="font-size: 10px; padding: 2px 6px;">
+                                        En Curso
+                                    </span>
+                                </div>
+                            {% else %}
+                                <div style="cursor: pointer; color: var(--text-muted);" onclick="abrirModalMatricula('{{ fila.docente.id }}', '{{ celda.competencia.id }}', 'Pendiente', '')" title="Pendiente">
+                                    -
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div style="cursor: pointer; color: #cbd5e1;" onclick="abrirModalMatricula('{{ fila.docente.id }}', '{{ celda.competencia.id }}', 'Pendiente', '')" title="Clic para matricular o registrar">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">add</span>
+                            </div>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="15" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                        No hay docentes registrados en la matriz.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Flotante para Registrar/Actualizar Matrícula -->
+<div id="modalMatricula" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 520px; padding: 28px; box-shadow: var(--shadow-lg);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="color: var(--color-primary); font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined" style="color: var(--color-secondary);">edit_note</span>
+                <span>Matrícula en Matriz Docente</span>
+            </h3>
+            <button type="button" onclick="cerrarModalMatricula()" style="border: none; background: none; cursor: pointer; font-size: 20px; color: var(--text-muted);">&times;</button>
+        </div>
+
+        <form method="POST" action="{% url 'personas:matricular_docente_matriz' %}">
+            {% csrf_token %}
+            
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label>Docente:</label>
+                <select name="persona_id" id="modal_persona_id" required class="form-control">
+                    <option value="">-- Seleccionar Docente --</option>
+                    {% for fila in matriz_filas %}
+                    <option value="{{ fila.docente.id }}">{{ fila.docente.nombre_completo }} ({{ fila.docente.codigo_empleado }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label>Curso / Competencia del Plan Integral:</label>
+                <select name="competencia_id" id="modal_competencia_id" required class="form-control">
+                    <option value="">-- Seleccionar Curso / Competencia --</option>
+                    {% for comp in competencias %}
+                    <option value="{{ comp.id }}">{{ comp.categoria }}: {{ comp.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label>Estado de la Matrícula / Avance:</label>
+                <select name="estado" id="modal_estado" required class="form-control">
+                    <option value="Aprobado">Aprobado / Completado</option>
+                    <option value="En Curso">En Curso</option>
+                    <option value="Pendiente">Pendiente / No Cursado</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label>Fecha de Finalización / Título / Diploma:</label>
+                <input type="date" name="fecha_completado" id="modal_fecha" class="form-control">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 18px;">
+                <label>Observaciones o Nombre de Especialidad:</label>
+                <input type="text" name="nombre_curso_especialidad" id="modal_especialidad" class="form-control" placeholder="Ej. Taller Internacional SQL para Análisis de Datos">
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="cerrarModalMatricula()" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">save</span>
+                    <span>Guardar Estado</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function abrirModalMatricula(personaId, compId, estado, fecha) {
+    document.getElementById('modalMatricula').style.display = 'flex';
+    if (personaId) document.getElementById('modal_persona_id').value = personaId;
+    if (compId) document.getElementById('modal_competencia_id').value = compId;
+    if (estado) document.getElementById('modal_estado').value = estado;
+    if (fecha) document.getElementById('modal_fecha').value = fecha;
+}
+
+function cerrarModalMatricula() {
+    document.getElementById('modalMatricula').style.display = 'none';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ accion }} Docente / Colaborador — SIGECAP{% endblock %}
+{% block page_title %}{{ accion }} Docente o Personal{% endblock %}
+{% block page_subtitle %}Ingreso y actualización del expediente de personal para el padrón y la matriz docente{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 920px; margin: 0 auto;">
+    <form method="POST">
+        {% csrf_token %}
+        
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-secondary);">person_add</span>
+                <span>Datos Personales e Institucionales</span>
+            </div>
+            <a href="{% url 'personas:lista' %}" class="btn btn-outline" style="padding: 6px 14px; font-size: 12px;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">arrow_back</span>
+                <span>Volver al Padrón</span>
+            </a>
+        </div>
+
+        <div class="form-grid" style="margin-bottom: 24px;">
+            <!-- Fila 1: Código y DNI -->
+            <div class="form-group">
+                <label for="codigo_empleado">Código de Empleado *</label>
+                <input type="text" id="codigo_empleado" name="codigo_empleado" required class="form-control" 
+                       value="{% if persona %}{{ persona.codigo_empleado }}{% else %}{{ next_code }}{% endif %}">
+            </div>
+
+            <div class="form-group">
+                <label for="documento_identidad">Documento de Identidad (DNI / DUI)</label>
+                <input type="text" id="documento_identidad" name="documento_identidad" class="form-control" 
+                       placeholder="Ej. 0801-1990-12345" value="{{ persona.documento_identidad|default:'' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="sexo">Sexo *</label>
+                <select id="sexo" name="sexo" required class="form-control">
+                    {% for val, label in sexos %}
+                    <option value="{{ val }}" {% if persona.sexo == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Fila 2: Nombres y Apellidos -->
+            <div class="form-group">
+                <label for="nombres">Nombres *</label>
+                <input type="text" id="nombres" name="nombres" required class="form-control" 
+                       placeholder="Ej. Juan Carlos" value="{{ persona.nombres|default:'' }}">
+            </div>
+
+            <div class="form-group" style="grid-column: span 2;">
+                <label for="apellidos">Apellidos *</label>
+                <input type="text" id="apellidos" name="apellidos" required class="form-control" 
+                       placeholder="Ej. Pérez Rodríguez" value="{{ persona.apellidos|default:'' }}">
+            </div>
+
+            <!-- Fila 3: Tipo de Personal, Contrato y Grado -->
+            <div class="form-group">
+                <label for="tipo_personal">Tipo de Personal *</label>
+                <select id="tipo_personal" name="tipo_personal" required class="form-control">
+                    {% for val, label in tipos_personal %}
+                    <option value="{{ val }}" {% if persona.tipo_personal == val %}selected{% elif not persona and val == 'Docente' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tipo_contrato">Tipo de Contrato *</label>
+                <select id="tipo_contrato" name="tipo_contrato" required class="form-control">
+                    {% for val, label in tipos_contrato %}
+                    <option value="{{ val }}" {% if persona.tipo_contrato == val %}selected{% elif not persona and val == 'Tiempo Completo' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="grado_academico">Último Grado Académico *</label>
+                <select id="grado_academico" name="grado_academico" required class="form-control">
+                    {% for val, label in grados_academicos %}
+                    <option value="{{ val }}" {% if persona.grado_academico == val %}selected{% elif not persona and val == 'Maestría' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Fila 4: Facultad y Departamento -->
+            <div class="form-group" style="grid-column: span 2;">
+                <label for="facultad">Facultad / Centro de Adscripción *</label>
+                <select id="facultad" name="facultad" required class="form-control">
+                    <option value="">-- Seleccionar Facultad --</option>
+                    {% for f in facultades %}
+                    <option value="{{ f.id }}" {% if persona.facultad_id == f.id %}selected{% endif %}>{{ f.codigo }} — {{ f.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="departamento_unidad">Departamento / Escuela</label>
+                <input type="text" id="departamento_unidad" name="departamento_unidad" class="form-control" 
+                       placeholder="Ej. Departamento de Informática" value="{{ persona.departamento_unidad|default:'' }}">
+            </div>
+
+            <!-- Fila 5: Cargo, Correo y Teléfono -->
+            <div class="form-group">
+                <label for="cargo_actual">Cargo o Puesto Actual</label>
+                <input type="text" id="cargo_actual" name="cargo_actual" class="form-control" 
+                       placeholder="Ej. Profesor Titular / Coordinador" value="{{ persona.cargo_actual|default:'' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="email_institucional">Correo Institucional</label>
+                <input type="email" id="email_institucional" name="email_institucional" class="form-control" 
+                       placeholder="Ej. docente@universidad.edu" value="{{ persona.email_institucional|default:'' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="telefono">Teléfono / Extensión</label>
+                <input type="text" id="telefono" name="telefono" class="form-control" 
+                       placeholder="Ej. +504 2234-5678" value="{{ persona.telefono|default:'' }}">
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border-subtle); padding-top: 20px;">
+            <a href="{% url 'personas:lista' %}" class="btn btn-outline">Cancelar</a>
+            <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">
+                <span class="material-symbols-outlined">save</span>
+                <span>Guardar Docente / Colaborador</span>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

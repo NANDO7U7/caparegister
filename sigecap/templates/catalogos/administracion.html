@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block title %}Administración de Catálogos — SIGECAP{% endblock %}
+{% block page_title %}Catálogos del Sistema{% endblock %}
+{% block page_subtitle %}Gestión de entidades maestras: facultades, áreas de formación, modalidades y proveedores{% endblock %}
+
+{% block header_buttons %}
+<a href="{% url 'core:panel_administracion' %}?tab=catalogos" class="btn btn-primary">
+    <span class="material-symbols-outlined" style="font-size: 16px;">tune</span>
+    <span>Consola de Administración Completa</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Grid de Catálogos Principales -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <!-- 1. Catálogo de Facultades -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-primary);">account_balance</span>
+                <span>Facultades y Unidades ({{ facultades.count }})</span>
+            </div>
+        </div>
+
+        <!-- Formulario Rápido -->
+        <form method="POST" style="display: flex; gap: 8px; margin-bottom: 16px;">
+            {% csrf_token %}
+            <input type="hidden" name="tipo_catalogo" value="facultad">
+            <input type="text" name="codigo" required placeholder="Código (ej. FI)" style="width: 100px;" class="form-control">
+            <input type="text" name="nombre" required placeholder="Nombre de la Facultad..." style="flex: 1;" class="form-control">
+            <button type="submit" class="btn btn-primary" style="padding: 8px 14px;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+            </button>
+        </form>
+
+        <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nombre</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fac in facultades %}
+                    <tr>
+                        <td><strong>{{ fac.codigo }}</strong></td>
+                        <td>{{ fac.nombre }}</td>
+                        <td>
+                            <span class="badge badge-finalizada">Activo</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-muted);">Sin facultades registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 2. Catálogo de Áreas Formativas -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-secondary);">category</span>
+                <span>Áreas de Formación / Ejes ({{ areas.count }})</span>
+            </div>
+        </div>
+
+        <!-- Formulario Rápido -->
+        <form method="POST" style="display: flex; gap: 8px; margin-bottom: 16px;">
+            {% csrf_token %}
+            <input type="hidden" name="tipo_catalogo" value="area">
+            <input type="text" name="codigo" required placeholder="Código (ej. EJE-01)" style="width: 110px;" class="form-control">
+            <input type="text" name="nombre" required placeholder="Nombre del Área / Eje..." style="flex: 1;" class="form-control">
+            <button type="submit" class="btn btn-primary" style="padding: 8px 14px;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+            </button>
+        </form>
+
+        <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Área / Eje Formativo</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in areas %}
+                    <tr>
+                        <td><strong>{{ a.codigo }}</strong></td>
+                        <td>{{ a.nombre }}</td>
+                        <td>
+                            <span class="badge badge-finalizada">Activo</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-muted);">Sin áreas formativas registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 3. Tipos y Modalidades -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-primary);">devices</span>
+                <span>Tipos y Modalidades ({{ tipos_modalidad.count }})</span>
+            </div>
+        </div>
+
+        <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Tipo de Formación</th>
+                        <th>Modalidad</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tm in tipos_modalidad %}
+                    <tr>
+                        <td><strong>{{ tm.tipo }}</strong></td>
+                        <td>{{ tm.modalidad }}</td>
+                        <td><span class="badge badge-finalizada">Activo</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-muted);">Sin tipos/modalidades registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 4. Proveedores y Fondos -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-secondary);">apartment</span>
+                <span>Proveedores e Instituciones ({{ proveedores.count }})</span>
+            </div>
+        </div>
+
+        <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Institución / Empresa</th>
+                        <th>Tipo</th>
+                        <th>Contacto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prov in proveedores %}
+                    <tr>
+                        <td><strong>{{ prov.nombre }}</strong></td>
+                        <td>{{ prov.tipo }}</td>
+                        <td>{{ prov.contacto_email|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-muted);">Sin proveedores registrados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

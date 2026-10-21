@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Asistencia Confirmada! — SIGECAP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f0fdf4;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(5, 150, 105, 0.15);
+            max-width: 480px;
+            width: 100%;
+            padding: 36px 24px;
+            text-align: center;
+            border: 2px solid #a7f3d0;
+        }
+        .success-icon {
+            width: 64px;
+            height: 64px;
+            background: #d1fae5;
+            color: #059669;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px auto;
+        }
+        h2 { font-size: 22px; font-weight: 800; color: #065f46; margin-bottom: 8px; }
+        p { font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 20px; }
+        .details-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: left;
+            margin-bottom: 24px;
+            font-size: 12px;
+        }
+        .btn-portal {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: #0051d5;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="success-icon">
+            <span class="material-symbols-outlined" style="font-size: 36px;">verified</span>
+        </div>
+        
+        <h2>¡Asistencia Registrada!</h2>
+        <p>Tu participación ha sido confirmada en el sistema institucional sin necesidad de listas en papel.</p>
+
+        <div class="details-box">
+            <div style="margin-bottom: 6px;"><strong>Participante:</strong> {{ persona.nombre_completo }}</div>
+            <div style="margin-bottom: 6px;"><strong>Código:</strong> {{ persona.codigo_empleado }} ({{ persona.facultad.codigo|default:"General" }})</div>
+            <div style="margin-bottom: 6px;"><strong>Capacitación:</strong> {{ capacitacion.codigo }} — {{ capacitacion.nombre }}</div>
+            <div><strong>Horas que se acreditarán:</strong> {{ capacitacion.horas_duracion }} Horas</div>
+        </div>
+
+        <a href="/personas/portal/?docente={{ persona.id }}" class="btn-portal">
+            <span class="material-symbols-outlined">person</span>
+            <span>Ver Mi Portal Docente</span>
+        </a>
+    </div>
+</body>
+</html>

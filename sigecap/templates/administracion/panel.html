@@ -1,0 +1,1167 @@
+{% extends 'base.html' %}
+
+{% block title %}Panel de Administración Web — SIGECAP{% endblock %}
+{% block page_title %}Centro de Administración Web{% endblock %}
+{% block page_subtitle %}Gestión directa de catálogos maestros, usuarios, roles, capacitaciones y auditoría institucional{% endblock %}
+
+{% block header_buttons %}
+<button type="button" onclick="openCrearUsuarioModal()" class="btn btn-primary">
+    <span class="material-symbols-outlined" style="font-size: 18px;">person_add</span>
+    <span>Nuevo Usuario</span>
+</button>
+<a href="{% url 'capacitaciones:crear' %}" class="btn btn-secondary">
+    <span class="material-symbols-outlined" style="font-size: 18px;">add_circle</span>
+    <span>Nueva Capacitación</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .admin-nav-tabs {
+        display: flex;
+        gap: 8px;
+        border-bottom: 2px solid var(--border-subtle);
+        margin-bottom: 24px;
+        padding-bottom: 4px;
+        overflow-x: auto;
+    }
+    .admin-tab-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 14px;
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+    .admin-tab-btn:hover {
+        background: #f1f5f9;
+        color: var(--color-primary);
+    }
+    .admin-tab-btn.active {
+        color: var(--color-primary);
+        border-bottom: 3px solid var(--color-secondary);
+        background: rgba(0, 81, 213, 0.05);
+    }
+    .subtabs-container {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    .subtab-pill {
+        padding: 6px 14px;
+        border-radius: 20px;
+        border: 1px solid var(--border-light);
+        background: white;
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .subtab-pill:hover, .subtab-pill.active {
+        background: var(--color-primary);
+        color: white;
+        border-color: var(--color-primary);
+    }
+    .action-btn-sm {
+        padding: 4px 8px;
+        font-size: 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border-light);
+        background: white;
+        color: var(--text-primary);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.15s;
+    }
+    .action-btn-sm:hover {
+        background: #f8fafc;
+        border-color: var(--color-secondary);
+    }
+    .action-btn-danger {
+        color: var(--color-danger);
+        border-color: rgba(220, 38, 38, 0.3);
+    }
+    .action-btn-danger:hover {
+        background: #fef2f2;
+        border-color: var(--color-danger);
+    }
+</style>
+
+<!-- Barra de Pestañas Principales -->
+<div class="admin-nav-tabs">
+    <a href="?tab=catalogos" class="admin-tab-btn {% if tab_activa == 'catalogos' %}active{% endif %}">
+        <span class="material-symbols-outlined" style="font-size: 20px;">dataset</span>
+        <span>Catálogos Maestros</span>
+    </a>
+    <a href="?tab=usuarios" class="admin-tab-btn {% if tab_activa == 'usuarios' %}active{% endif %}">
+        <span class="material-symbols-outlined" style="font-size: 20px;">manage_accounts</span>
+        <span>Usuarios y Roles</span>
+    </a>
+    <a href="?tab=capacitaciones" class="admin-tab-btn {% if tab_activa == 'capacitaciones' %}active{% endif %}">
+        <span class="material-symbols-outlined" style="font-size: 20px;">school</span>
+        <span>Control de Cursos</span>
+    </a>
+    <a href="?tab=auditoria" class="admin-tab-btn {% if tab_activa == 'auditoria' %}active{% endif %}">
+        <span class="material-symbols-outlined" style="font-size: 20px;">shield</span>
+        <span>Bitácora de Auditoría</span>
+    </a>
+</div>
+
+<!-- ==================== PESTAÑA 1: CATÁLOGOS MAESTROS ==================== -->
+{% if tab_activa == 'catalogos' %}
+<div>
+    <!-- Subpestañas para seleccionar catálogo -->
+    <div class="subtabs-container">
+        <a href="?tab=catalogos&subtab=facultades" class="subtab-pill {% if subtab == 'facultades' %}active{% endif %}">
+            <span class="material-symbols-outlined" style="font-size: 16px;">account_balance</span>
+            <span>Facultades y Unidades ({{ total_facultades }})</span>
+        </a>
+        <a href="?tab=catalogos&subtab=areas" class="subtab-pill {% if subtab == 'areas' %}active{% endif %}">
+            <span class="material-symbols-outlined" style="font-size: 16px;">category</span>
+            <span>Áreas de Formación ({{ total_areas }})</span>
+        </a>
+        <a href="?tab=catalogos&subtab=modalidades" class="subtab-pill {% if subtab == 'modalidades' %}active{% endif %}">
+            <span class="material-symbols-outlined" style="font-size: 16px;">devices</span>
+            <span>Tipos y Modalidades ({{ total_modalidades }})</span>
+        </a>
+        <a href="?tab=catalogos&subtab=proveedores" class="subtab-pill {% if subtab == 'proveedores' %}active{% endif %}">
+            <span class="material-symbols-outlined" style="font-size: 16px;">apartment</span>
+            <span>Proveedores e Instituciones ({{ total_proveedores }})</span>
+        </a>
+        <a href="?tab=catalogos&subtab=proyectos" class="subtab-pill {% if subtab == 'proyectos' %}active{% endif %}">
+            <span class="material-symbols-outlined" style="font-size: 16px;">account_tree</span>
+            <span>Proyectos y Fondos ({{ total_proyectos }})</span>
+        </a>
+    </div>
+
+    <!-- 1.1 FACULTADES -->
+    {% if subtab == 'facultades' %}
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-primary);">account_balance</span>
+                <span>Catálogo de Facultades y Unidades Organizacionales</span>
+            </div>
+        </div>
+
+        <!-- Formulario Rápido de Creación -->
+        <form method="POST" action="{% url 'core:catalogo_crud' 'facultad' 'crear' %}" style="display: grid; grid-template-columns: 120px 1fr 1fr auto; gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+            {% csrf_token %}
+            <input type="text" name="codigo" required placeholder="Código (ej. FIA)" class="form-control" style="font-weight: 700;">
+            <input type="text" name="nombre" required placeholder="Nombre de la Facultad o Unidad..." class="form-control">
+            <input type="text" name="descripcion" placeholder="Descripción institucional..." class="form-control">
+            <button type="submit" class="btn btn-primary" style="padding: 8px 16px;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+                <span>Agregar</span>
+            </button>
+        </form>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 120px;">Código</th>
+                        <th>Nombre de la Facultad / Unidad</th>
+                        <th>Descripción</th>
+                        <th style="width: 100px;">Estado</th>
+                        <th style="width: 150px; text-align: right;">Acciones Web</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fac in facultades %}
+                    <tr>
+                        <td><strong>{{ fac.codigo }}</strong></td>
+                        <td style="font-weight: 600; color: var(--color-primary);">{{ fac.nombre }}</td>
+                        <td style="color: var(--text-muted); font-size: 13px;">{{ fac.descripcion|default:"-" }}</td>
+                        <td>
+                            {% if fac.activo %}
+                            <span class="badge badge-finalizada">Activo</span>
+                            {% else %}
+                            <span class="badge badge-cancelada">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            <button type="button" class="action-btn-sm" onclick="openEditarFacultad('{{ fac.id }}', '{{ fac.codigo|escapejs }}', '{{ fac.nombre|escapejs }}', '{{ fac.descripcion|default:''|escapejs }}', {{ fac.activo|yesno:'true,false' }})">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">edit</span>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="action-btn-sm action-btn-danger" onclick="confirmarEliminar('{% url 'core:catalogo_crud' 'facultad' 'eliminar' %}', '{{ fac.id }}', 'Facultad: {{ fac.nombre|escapejs }}')">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">delete</span>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Sin facultades registradas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 1.2 ÁREAS DE FORMACIÓN -->
+    {% if subtab == 'areas' %}
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-secondary);">category</span>
+                <span>Áreas de Formación y Ejes Pedagógicos</span>
+            </div>
+        </div>
+
+        <form method="POST" action="{% url 'core:catalogo_crud' 'area' 'crear' %}" style="display: grid; grid-template-columns: 120px 1fr 1fr auto; gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+            {% csrf_token %}
+            <input type="text" name="codigo" required placeholder="Código (ej. EJE-01)" class="form-control" style="font-weight: 700;">
+            <input type="text" name="nombre" required placeholder="Nombre del Área o Eje..." class="form-control">
+            <input type="text" name="descripcion" placeholder="Descripción temática..." class="form-control">
+            <button type="submit" class="btn btn-primary" style="padding: 8px 16px;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+                <span>Agregar</span>
+            </button>
+        </form>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 120px;">Código</th>
+                        <th>Área / Eje Formativo</th>
+                        <th>Descripción</th>
+                        <th style="width: 100px;">Estado</th>
+                        <th style="width: 150px; text-align: right;">Acciones Web</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in areas %}
+                    <tr>
+                        <td><strong>{{ a.codigo }}</strong></td>
+                        <td style="font-weight: 600; color: var(--color-primary);">{{ a.nombre }}</td>
+                        <td style="color: var(--text-muted); font-size: 13px;">{{ a.descripcion|default:"-" }}</td>
+                        <td>
+                            {% if a.activo %}
+                            <span class="badge badge-finalizada">Activo</span>
+                            {% else %}
+                            <span class="badge badge-cancelada">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            <button type="button" class="action-btn-sm" onclick="openEditarArea('{{ a.id }}', '{{ a.codigo|escapejs }}', '{{ a.nombre|escapejs }}', '{{ a.descripcion|default:''|escapejs }}', {{ a.activo|yesno:'true,false' }})">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">edit</span>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="action-btn-sm action-btn-danger" onclick="confirmarEliminar('{% url 'core:catalogo_crud' 'area' 'eliminar' %}', '{{ a.id }}', 'Área: {{ a.nombre|escapejs }}')">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">delete</span>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Sin áreas formativas registradas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 1.3 TIPOS Y MODALIDADES -->
+    {% if subtab == 'modalidades' %}
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-primary);">devices</span>
+                <span>Tipos de Capacitación y Modalidades</span>
+            </div>
+        </div>
+
+        <form method="POST" action="{% url 'core:catalogo_crud' 'tipo_modalidad' 'crear' %}" style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+            {% csrf_token %}
+            <select name="tipo" required class="form-control">
+                <option value="">-- Seleccionar Tipo --</option>
+                <option value="Curso">Curso</option>
+                <option value="Taller">Taller</option>
+                <option value="Diplomado">Diplomado</option>
+                <option value="Congreso">Congreso</option>
+                <option value="Conferencia / Seminario">Conferencia / Seminario</option>
+                <option value="Certificación">Certificación</option>
+                <option value="Otro">Otro</option>
+            </select>
+            <select name="modalidad" required class="form-control">
+                <option value="">-- Seleccionar Modalidad --</option>
+                <option value="Presencial">Presencial</option>
+                <option value="Virtual">Virtual</option>
+                <option value="Híbrida">Híbrida</option>
+            </select>
+            <input type="text" name="descripcion" placeholder="Descripción / Metodología..." class="form-control">
+            <button type="submit" class="btn btn-primary" style="padding: 8px 16px;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+                <span>Agregar</span>
+            </button>
+        </form>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Tipo de Capacitación</th>
+                        <th>Modalidad</th>
+                        <th>Descripción</th>
+                        <th style="width: 100px;">Estado</th>
+                        <th style="width: 150px; text-align: right;">Acciones Web</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tm in tipos_modalidad %}
+                    <tr>
+                        <td style="font-weight: 700; color: var(--color-primary);">{{ tm.tipo }}</td>
+                        <td>
+                            <span class="badge badge-planificada">{{ tm.modalidad }}</span>
+                        </td>
+                        <td style="color: var(--text-muted); font-size: 13px;">{{ tm.descripcion|default:"-" }}</td>
+                        <td>
+                            {% if tm.activo %}
+                            <span class="badge badge-finalizada">Activo</span>
+                            {% else %}
+                            <span class="badge badge-cancelada">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            <button type="button" class="action-btn-sm" onclick="openEditarModalidad('{{ tm.id }}', '{{ tm.tipo|escapejs }}', '{{ tm.modalidad|escapejs }}', '{{ tm.descripcion|default:''|escapejs }}', {{ tm.activo|yesno:'true,false' }})">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">edit</span>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="action-btn-sm action-btn-danger" onclick="confirmarEliminar('{% url 'core:catalogo_crud' 'tipo_modalidad' 'eliminar' %}', '{{ tm.id }}', '{{ tm.tipo|escapejs }} ({{ tm.modalidad|escapejs }})')">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">delete</span>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Sin modalidades registradas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 1.4 PROVEEDORES -->
+    {% if subtab == 'proveedores' %}
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-secondary);">apartment</span>
+                <span>Proveedores, Consultores e Instituciones Capacitadoras</span>
+            </div>
+        </div>
+
+        <form method="POST" action="{% url 'core:catalogo_crud' 'proveedor' 'crear' %}" style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+            {% csrf_token %}
+            <input type="text" name="nombre" required placeholder="Nombre / Razón Social..." class="form-control">
+            <select name="tipo" class="form-control">
+                <option value="Externo">Externo (Empresa)</option>
+                <option value="Interno">Interno (Facilitador UGB)</option>
+            </select>
+            <input type="text" name="pais" value="Local" placeholder="País" class="form-control">
+            <input type="text" name="contacto_nombre" placeholder="Nombre Contacto" class="form-control">
+            <input type="email" name="contacto_email" placeholder="Email Contacto" class="form-control">
+            <button type="submit" class="btn btn-primary" style="padding: 8px 16px;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+                <span>Agregar</span>
+            </button>
+        </form>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Institución / Facilitador</th>
+                        <th>Tipo</th>
+                        <th>País</th>
+                        <th>Contacto</th>
+                        <th>Email / Teléfono</th>
+                        <th style="width: 100px;">Estado</th>
+                        <th style="width: 150px; text-align: right;">Acciones Web</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prov in proveedores %}
+                    <tr>
+                        <td style="font-weight: 700; color: var(--color-primary);">{{ prov.nombre }}</td>
+                        <td><span class="badge {% if prov.tipo == 'Interno' %}badge-finalizada{% else %}badge-planificada{% endif %}">{{ prov.tipo }}</span></td>
+                        <td>{{ prov.pais }}</td>
+                        <td>{{ prov.contacto_nombre|default:"-" }}</td>
+                        <td style="font-size: 12px; color: var(--text-muted);">{{ prov.contacto_email|default:"-" }}</td>
+                        <td>
+                            {% if prov.activo %}
+                            <span class="badge badge-finalizada">Activo</span>
+                            {% else %}
+                            <span class="badge badge-cancelada">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            <button type="button" class="action-btn-sm" onclick="openEditarProveedor('{{ prov.id }}', '{{ prov.nombre|escapejs }}', '{{ prov.tipo|escapejs }}', '{{ prov.pais|escapejs }}', '{{ prov.contacto_nombre|default:''|escapejs }}', '{{ prov.contacto_email|default:''|escapejs }}', '{{ prov.contacto_telefono|default:''|escapejs }}', {{ prov.activo|yesno:'true,false' }})">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">edit</span>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="action-btn-sm action-btn-danger" onclick="confirmarEliminar('{% url 'core:catalogo_crud' 'proveedor' 'eliminar' %}', '{{ prov.id }}', 'Proveedor: {{ prov.nombre|escapejs }}')">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">delete</span>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Sin proveedores registrados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 1.5 PROYECTOS / FONDOS -->
+    {% if subtab == 'proyectos' %}
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-primary);">account_tree</span>
+                <span>Proyectos y Fuentes de Financiamiento</span>
+            </div>
+        </div>
+
+        <form method="POST" action="{% url 'core:catalogo_crud' 'proyecto' 'crear' %}" style="display: grid; grid-template-columns: 120px 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+            {% csrf_token %}
+            <input type="text" name="codigo" required placeholder="Código (ej. PRY-01)" class="form-control" style="font-weight: 700;">
+            <input type="text" name="nombre" required placeholder="Nombre del Proyecto..." class="form-control">
+            <input type="text" name="fuente_financiamiento" placeholder="Fuente (ej. Fondos Propios)" class="form-control">
+            <input type="number" step="0.01" name="presupuesto_asignado" placeholder="Presupuesto Asignado ($)" class="form-control">
+            <button type="submit" class="btn btn-primary" style="padding: 8px 16px;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+                <span>Agregar</span>
+            </button>
+        </form>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 120px;">Código</th>
+                        <th>Nombre del Proyecto</th>
+                        <th>Fuente de Financiamiento</th>
+                        <th>Presupuesto Asignado</th>
+                        <th style="width: 100px;">Estado</th>
+                        <th style="width: 150px; text-align: right;">Acciones Web</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in proyectos %}
+                    <tr>
+                        <td><strong>{{ p.codigo }}</strong></td>
+                        <td style="font-weight: 700; color: var(--color-primary);">{{ p.nombre }}</td>
+                        <td>{{ p.fuente_financiamiento|default:"Fondos Institucionales" }}</td>
+                        <td style="font-weight: 600; color: var(--color-secondary);">${{ p.presupuesto_asignado|floatformat:2 }}</td>
+                        <td>
+                            {% if p.activo %}
+                            <span class="badge badge-finalizada">Activo</span>
+                            {% else %}
+                            <span class="badge badge-cancelada">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            <button type="button" class="action-btn-sm" onclick="openEditarProyecto('{{ p.id }}', '{{ p.codigo|escapejs }}', '{{ p.nombre|escapejs }}', '{{ p.fuente_financiamiento|default:''|escapejs }}', '{{ p.presupuesto_asignado }}', {{ p.activo|yesno:'true,false' }})">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">edit</span>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="action-btn-sm action-btn-danger" onclick="confirmarEliminar('{% url 'core:catalogo_crud' 'proyecto' 'eliminar' %}', '{{ p.id }}', 'Proyecto: {{ p.nombre|escapejs }}')">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">delete</span>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Sin proyectos registrados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ==================== PESTAÑA 2: USUARIOS Y ROLES ==================== -->
+{% if tab_activa == 'usuarios' %}
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="card-title">
+            <span class="material-symbols-outlined" style="color: var(--color-primary);">manage_accounts</span>
+            <span>Cuentas de Usuario y Asignación de Roles</span>
+        </div>
+        <button type="button" onclick="openCrearUsuarioModal()" class="btn btn-primary" style="padding: 6px 14px; font-size: 13px;">
+            <span class="material-symbols-outlined" style="font-size: 16px;">person_add</span>
+            <span>Nuevo Usuario</span>
+        </button>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Nombre y Apellido</th>
+                    <th>Correo Electrónico</th>
+                    <th>Rol en SIGECAP</th>
+                    <th>Estado</th>
+                    <th>Último Acceso</th>
+                    <th style="width: 220px; text-align: right;">Acciones Web</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in usuarios %}
+                <tr>
+                    <td>
+                        <strong style="color: var(--color-primary); font-size: 14px;">{{ u.username }}</strong>
+                    </td>
+                    <td>{{ u.get_full_name|default:"-" }}</td>
+                    <td style="color: var(--text-secondary); font-size: 13px;">{{ u.email|default:"-" }}</td>
+                    <td>
+                        {% if u.is_superuser or u.username == 'admin' %}
+                        <span class="badge" style="background: #1e3a8a; color: white;">ADMIN · Edición Total</span>
+                        {% elif u.username == 'ugb_pif' %}
+                        <span class="badge" style="background: #0284c7; color: white;">UGB_PIF · Edición PIF</span>
+                        {% elif u.username == 'coordinador' %}
+                        <span class="badge" style="background: #d97706; color: white;">COORDINADOR · Auditoría</span>
+                        {% else %}
+                        <span class="badge badge-planificada">CONSULTA · Solo Lectura</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.is_active %}
+                        <span class="badge badge-finalizada">Activo</span>
+                        {% else %}
+                        <span class="badge badge-cancelada">Bloqueado</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size: 12px; color: var(--text-muted);">
+                        {{ u.last_login|date:"d/M/Y H:i"|default:"Nunca" }}
+                    </td>
+                    <td style="text-align: right;">
+                        <button type="button" class="action-btn-sm" onclick="openEditarUsuario('{{ u.id }}', '{{ u.username|escapejs }}', '{{ u.first_name|escapejs }}', '{{ u.last_name|escapejs }}', '{{ u.email|escapejs }}', '{% if u.is_superuser %}ADMIN{% elif u.username == 'ugb_pif' %}UGB_PIF{% elif u.username == 'coordinador' %}COORDINADOR{% else %}CONSULTA{% endif %}', {{ u.is_active|yesno:'true,false' }})">
+                            <span class="material-symbols-outlined" style="font-size: 14px;">edit</span>
+                            <span>Editar</span>
+                        </button>
+                        <button type="button" class="action-btn-sm" onclick="openPasswordModal('{{ u.id }}', '{{ u.username|escapejs }}')">
+                            <span class="material-symbols-outlined" style="font-size: 14px;">key</span>
+                            <span>Clave</span>
+                        </button>
+                        {% if u.id != request.user.id %}
+                        <button type="button" class="action-btn-sm action-btn-danger" onclick="confirmarEliminarUsuario('{{ u.id }}', '{{ u.username|escapejs }}')">
+                            <span class="material-symbols-outlined" style="font-size: 14px;">delete</span>
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ==================== PESTAÑA 3: CONTROL DE CURSOS Y REGISTROS ==================== -->
+{% if tab_activa == 'capacitaciones' %}
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="card-title">
+            <span class="material-symbols-outlined" style="color: var(--color-primary);">school</span>
+            <span>Control de Capacitaciones y Acciones de Mantenimiento</span>
+        </div>
+        <a href="{% url 'capacitaciones:crear' %}" class="btn btn-primary" style="padding: 6px 14px; font-size: 13px;">
+            <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+            <span>Nueva Capacitación</span>
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre de la Capacitación</th>
+                    <th>Área / Modalidad</th>
+                    <th>Fechas</th>
+                    <th>Inscritos</th>
+                    <th>Estado Actual</th>
+                    <th style="width: 260px; text-align: right;">Acciones de Administración Web</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cap in capacitaciones %}
+                <tr>
+                    <td><strong>{{ cap.codigo }}</strong></td>
+                    <td>
+                        <a href="{% url 'capacitaciones:detalle' cap.id %}" style="font-weight: 700; color: var(--color-primary); text-decoration: none;">
+                            {{ cap.nombre }}
+                        </a>
+                    </td>
+                    <td style="font-size: 13px; color: var(--text-secondary);">
+                        {{ cap.area_formacion.nombre }}<br>
+                        <small style="color: var(--text-muted);">{{ cap.tipo_modalidad }}</small>
+                    </td>
+                    <td style="font-size: 12px; color: var(--text-muted);">
+                        {{ cap.fecha_inicio|date:"d/m/Y" }} — {{ cap.fecha_fin|date:"d/m/Y" }}
+                    </td>
+                    <td>
+                        <span class="badge badge-planificada">{{ cap.total_inscritos }} / {{ cap.cupo_maximo }}</span>
+                    </td>
+                    <td>
+                        <form method="POST" action="{% url 'core:cambiar_estado_capacitacion' cap.id %}" style="margin: 0;">
+                            {% csrf_token %}
+                            <select name="nuevo_estado" onchange="this.form.submit()" style="font-size: 12px; font-weight: 600; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border-light); cursor: pointer;
+                                {% if cap.estado == 'En Curso' %}background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;
+                                {% elif cap.estado == 'Finalizada' %}background: #ecfdf5; color: #047857; border-color: #a7f3d0;
+                                {% elif cap.estado == 'Cancelada' %}background: #fef2f2; color: #b91c1c; border-color: #fecaca;
+                                {% else %}background: #fffbeb; color: #b45309; border-color: #fde68a;{% endif %}">
+                                <option value="Planificada" {% if cap.estado == 'Planificada' %}selected{% endif %}>Planificada</option>
+                                <option value="En Curso" {% if cap.estado == 'En Curso' %}selected{% endif %}>En Curso</option>
+                                <option value="Finalizada" {% if cap.estado == 'Finalizada' %}selected{% endif %}>Finalizada</option>
+                                <option value="Cancelada" {% if cap.estado == 'Cancelada' %}selected{% endif %}>Cancelada</option>
+                            </select>
+                        </form>
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'capacitaciones:editar' cap.id %}" class="action-btn-sm" style="text-decoration: none;">
+                            <span class="material-symbols-outlined" style="font-size: 14px;">edit</span>
+                            <span>Editar</span>
+                        </a>
+                        <a href="{% url 'capacitaciones:detalle' cap.id %}" class="action-btn-sm" style="text-decoration: none;">
+                            <span class="material-symbols-outlined" style="font-size: 14px;">visibility</span>
+                            <span>Ficha</span>
+                        </a>
+                        <button type="button" class="action-btn-sm action-btn-danger" onclick="confirmarEliminarCapacitacionWeb('{% url 'capacitaciones:eliminar' cap.id %}', '{{ cap.codigo|escapejs }} — {{ cap.nombre|escapejs }}')">
+                            <span class="material-symbols-outlined" style="font-size: 14px;">delete</span>
+                            <span>Eliminar</span>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Sin capacitaciones registradas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ==================== PESTAÑA 4: AUDITORÍA INMUTABLE ==================== -->
+{% if tab_activa == 'auditoria' %}
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span class="material-symbols-outlined" style="color: var(--color-primary);">shield</span>
+            <span>Bitácora de Auditoría del Sistema (Últimos 100 Registros)</span>
+        </div>
+    </div>
+
+    <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 150px;">Fecha y Hora</th>
+                    <th>Usuario</th>
+                    <th>Acción</th>
+                    <th>Tabla / Módulo</th>
+                    <th>ID Registro</th>
+                    <th>IP Origen</th>
+                    <th>Detalles</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in auditorias %}
+                <tr>
+                    <td style="font-size: 12px; color: var(--text-muted);">{{ log.fecha_hora|date:"d/m/Y H:i:s" }}</td>
+                    <td style="font-weight: 600;">
+                        {% if log.usuario %}{{ log.usuario.username }}{% else %}Sistema / Anónimo{% endif %}
+                    </td>
+                    <td>
+                        {% if log.accion == 'INSERT' %}<span class="badge badge-finalizada">INSERT</span>
+                        {% elif log.accion == 'UPDATE' %}<span class="badge badge-planificada">UPDATE</span>
+                        {% elif log.accion == 'DELETE' %}<span class="badge badge-cancelada">DELETE</span>
+                        {% else %}<span class="badge">{{ log.accion }}</span>{% endif %}
+                    </td>
+                    <td><code>{{ log.tabla_afectada }}</code></td>
+                    <td style="font-size: 12px; color: var(--text-muted);">{{ log.registro_id|default:"-"|truncatechars:18 }}</td>
+                    <td style="font-size: 12px; color: var(--text-muted);">{{ log.ip_origen|default:"127.0.0.1" }}</td>
+                    <td style="font-size: 12px; color: var(--text-secondary); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ log.detalles|default:"-" }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Sin registros de auditoría aún.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ==================== MODALES INTERACTIVOS ==================== -->
+
+<!-- Modal 1: Editar Facultad -->
+<div id="modalEditarFacultad" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 480px; padding: 24px; box-shadow: var(--shadow-lg);">
+        <h3 style="color: var(--color-primary); font-size: 18px; font-weight: 700; margin-bottom: 16px;">Editar Facultad</h3>
+        <form method="POST" action="{% url 'core:catalogo_crud' 'facultad' 'editar' %}">
+            {% csrf_token %}
+            <input type="hidden" name="id" id="editFacId">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Código</label>
+                    <input type="text" name="codigo" id="editFacCodigo" required class="form-control">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Nombre de la Facultad</label>
+                    <input type="text" name="nombre" id="editFacNombre" required class="form-control">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Descripción</label>
+                    <textarea name="descripcion" id="editFacDescripcion" class="form-control" rows="2"></textarea>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="activo" id="editFacActivo" style="accent-color: var(--color-primary);">
+                    <label for="editFacActivo" style="font-size: 13px; font-weight: 600;">Estado Activo</label>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button type="button" onclick="document.getElementById('modalEditarFacultad').style.display='none'" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 2: Editar Área -->
+<div id="modalEditarArea" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 480px; padding: 24px; box-shadow: var(--shadow-lg);">
+        <h3 style="color: var(--color-primary); font-size: 18px; font-weight: 700; margin-bottom: 16px;">Editar Área de Formación</h3>
+        <form method="POST" action="{% url 'core:catalogo_crud' 'area' 'editar' %}">
+            {% csrf_token %}
+            <input type="hidden" name="id" id="editAreaId">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Código</label>
+                    <input type="text" name="codigo" id="editAreaCodigo" required class="form-control">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Nombre del Área</label>
+                    <input type="text" name="nombre" id="editAreaNombre" required class="form-control">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Descripción</label>
+                    <textarea name="descripcion" id="editAreaDescripcion" class="form-control" rows="2"></textarea>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="activo" id="editAreaActivo" style="accent-color: var(--color-primary);">
+                    <label for="editAreaActivo" style="font-size: 13px; font-weight: 600;">Estado Activo</label>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button type="button" onclick="document.getElementById('modalEditarArea').style.display='none'" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 3: Editar Tipo/Modalidad -->
+<div id="modalEditarModalidad" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 480px; padding: 24px; box-shadow: var(--shadow-lg);">
+        <h3 style="color: var(--color-primary); font-size: 18px; font-weight: 700; margin-bottom: 16px;">Editar Tipo y Modalidad</h3>
+        <form method="POST" action="{% url 'core:catalogo_crud' 'tipo_modalidad' 'editar' %}">
+            {% csrf_token %}
+            <input type="hidden" name="id" id="editModId">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Tipo de Formación</label>
+                    <select name="tipo" id="editModTipo" required class="form-control">
+                        <option value="Curso">Curso</option>
+                        <option value="Taller">Taller</option>
+                        <option value="Diplomado">Diplomado</option>
+                        <option value="Congreso">Congreso</option>
+                        <option value="Conferencia / Seminario">Conferencia / Seminario</option>
+                        <option value="Certificación">Certificación</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Modalidad</label>
+                    <select name="modalidad" id="editModModalidad" required class="form-control">
+                        <option value="Presencial">Presencial</option>
+                        <option value="Virtual">Virtual</option>
+                        <option value="Híbrida">Híbrida</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Descripción</label>
+                    <input type="text" name="descripcion" id="editModDescripcion" class="form-control">
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="activo" id="editModActivo" style="accent-color: var(--color-primary);">
+                    <label for="editModActivo" style="font-size: 13px; font-weight: 600;">Estado Activo</label>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button type="button" onclick="document.getElementById('modalEditarModalidad').style.display='none'" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 4: Editar Proveedor -->
+<div id="modalEditarProveedor" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 520px; padding: 24px; box-shadow: var(--shadow-lg);">
+        <h3 style="color: var(--color-primary); font-size: 18px; font-weight: 700; margin-bottom: 16px;">Editar Proveedor / Facilitador</h3>
+        <form method="POST" action="{% url 'core:catalogo_crud' 'proveedor' 'editar' %}">
+            {% csrf_token %}
+            <input type="hidden" name="id" id="editProvId">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Nombre / Razón Social</label>
+                    <input type="text" name="nombre" id="editProvNombre" required class="form-control">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Tipo</label>
+                        <select name="tipo" id="editProvTipo" class="form-control">
+                            <option value="Externo">Externo (Empresa)</option>
+                            <option value="Interno">Interno (Facilitador UGB)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">País</label>
+                        <input type="text" name="pais" id="editProvPais" class="form-control">
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Nombre de Contacto</label>
+                    <input type="text" name="contacto_nombre" id="editProvContacto" class="form-control">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Email</label>
+                        <input type="email" name="contacto_email" id="editProvEmail" class="form-control">
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Teléfono</label>
+                        <input type="text" name="contacto_telefono" id="editProvTel" class="form-control">
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="activo" id="editProvActivo" style="accent-color: var(--color-primary);">
+                    <label for="editProvActivo" style="font-size: 13px; font-weight: 600;">Estado Activo</label>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button type="button" onclick="document.getElementById('modalEditarProveedor').style.display='none'" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 5: Editar Proyecto -->
+<div id="modalEditarProyecto" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 500px; padding: 24px; box-shadow: var(--shadow-lg);">
+        <h3 style="color: var(--color-primary); font-size: 18px; font-weight: 700; margin-bottom: 16px;">Editar Proyecto / Fondo</h3>
+        <form method="POST" action="{% url 'core:catalogo_crud' 'proyecto' 'editar' %}">
+            {% csrf_token %}
+            <input type="hidden" name="id" id="editPryId">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Código</label>
+                    <input type="text" name="codigo" id="editPryCodigo" required class="form-control">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Nombre del Proyecto</label>
+                    <input type="text" name="nombre" id="editPryNombre" required class="form-control">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Fuente de Financiamiento</label>
+                    <input type="text" name="fuente_financiamiento" id="editPryFuente" class="form-control">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Presupuesto Asignado ($)</label>
+                    <input type="number" step="0.01" name="presupuesto_asignado" id="editPryMonto" class="form-control">
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="activo" id="editPryActivo" style="accent-color: var(--color-primary);">
+                    <label for="editPryActivo" style="font-size: 13px; font-weight: 600;">Estado Activo</label>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button type="button" onclick="document.getElementById('modalEditarProyecto').style.display='none'" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 6: Crear Usuario -->
+<div id="modalCrearUsuario" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 480px; padding: 24px; box-shadow: var(--shadow-lg);">
+        <h3 style="color: var(--color-primary); font-size: 18px; font-weight: 700; margin-bottom: 16px;">Nuevo Usuario del Sistema</h3>
+        <form method="POST" action="{% url 'core:usuario_crud' 'crear' %}">
+            {% csrf_token %}
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Nombre de Usuario (Login)</label>
+                    <input type="text" name="username" required placeholder="ej. marianag" class="form-control">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Nombres</label>
+                        <input type="text" name="first_name" placeholder="Mariana" class="form-control">
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Apellidos</label>
+                        <input type="text" name="last_name" placeholder="Gómez" class="form-control">
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Correo Institucional</label>
+                    <input type="email" name="email" placeholder="usuario@ugb.edu" class="form-control">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Rol y Permisos</label>
+                    <select name="rol" class="form-control">
+                        <option value="ADMIN">ADMIN · Superusuario (Edición Total en Web)</option>
+                        <option value="UGB_PIF">UGB_PIF · Edición PIF y Capacitaciones</option>
+                        <option value="COORDINADOR" selected>COORDINADOR · Gestión y Auditoría</option>
+                        <option value="CONSULTA">CONSULTA · Solo Lectura</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Contraseña Inicial</label>
+                    <input type="password" name="password" required class="form-control" placeholder="••••••••">
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button type="button" onclick="document.getElementById('modalCrearUsuario').style.display='none'" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Crear Cuenta</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 7: Editar Usuario -->
+<div id="modalEditarUsuario" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 480px; padding: 24px; box-shadow: var(--shadow-lg);">
+        <h3 style="color: var(--color-primary); font-size: 18px; font-weight: 700; margin-bottom: 16px;">Editar Cuenta de Usuario</h3>
+        <form method="POST" action="{% url 'core:usuario_crud' 'editar' %}">
+            {% csrf_token %}
+            <input type="hidden" name="user_id" id="editUserId">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Usuario</label>
+                    <input type="text" id="editUserUsername" disabled class="form-control" style="background: #f8fafc;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Nombres</label>
+                        <input type="text" name="first_name" id="editUserFirstName" class="form-control">
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Apellidos</label>
+                        <input type="text" name="last_name" id="editUserLastName" class="form-control">
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Correo Institucional</label>
+                    <input type="email" name="email" id="editUserEmail" class="form-control">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Rol Asignado</label>
+                    <select name="rol" id="editUserRol" class="form-control">
+                        <option value="ADMIN">ADMIN · Edición Total</option>
+                        <option value="UGB_PIF">UGB_PIF · Edición PIF</option>
+                        <option value="COORDINADOR">COORDINADOR · Auditoría</option>
+                        <option value="CONSULTA">CONSULTA · Solo Lectura</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="is_active" id="editUserIsActive" style="accent-color: var(--color-primary);">
+                    <label for="editUserIsActive" style="font-size: 13px; font-weight: 600;">Cuenta Habilitada / Activa</label>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button type="button" onclick="document.getElementById('modalEditarUsuario').style.display='none'" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 8: Cambiar Contraseña -->
+<div id="modalPasswordUsuario" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 420px; padding: 24px; box-shadow: var(--shadow-lg);">
+        <h3 style="color: var(--color-primary); font-size: 18px; font-weight: 700; margin-bottom: 12px;">Cambiar Contraseña</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+            Actualizando credencial para: <strong id="passUserNombre" style="color: var(--color-primary);"></strong>
+        </p>
+        <form method="POST" action="{% url 'core:usuario_crud' 'password' %}">
+            {% csrf_token %}
+            <input type="hidden" name="user_id" id="passUserId">
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Nueva Contraseña</label>
+                <input type="password" name="nueva_password" required placeholder="Ingresa la nueva contraseña..." class="form-control">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="document.getElementById('modalPasswordUsuario').style.display='none'" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Actualizar Clave</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 9: Confirmación Universal de Eliminación -->
+<div id="modalConfirmarEliminar" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 440px; padding: 24px; box-shadow: var(--shadow-lg);">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: #fee2e2; color: #b91c1c; display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="font-size: 24px;">warning</span>
+            </div>
+            <div>
+                <h3 style="color: var(--color-danger); font-size: 18px; font-weight: 700; margin: 0;">Confirmar Eliminación</h3>
+                <span style="font-size: 12px; color: var(--text-muted);">Esta acción es irreversible</span>
+            </div>
+        </div>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px;">
+            ¿Estás seguro de que deseas eliminar permanentemente el registro: <br>
+            <strong id="textoConfirmacionEliminar" style="color: var(--text-primary);"></strong>?
+        </p>
+        <form method="POST" id="formConfirmarEliminar">
+            {% csrf_token %}
+            <input type="hidden" name="id" id="idRegistroEliminar">
+            <input type="hidden" name="user_id" id="idUserEliminar">
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="document.getElementById('modalConfirmarEliminar').style.display='none'" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="background: var(--color-danger); border-color: var(--color-danger);">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">delete_forever</span>
+                    <span>Eliminar Registro</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditarFacultad(id, cod, nom, desc, act) {
+        document.getElementById('editFacId').value = id;
+        document.getElementById('editFacCodigo').value = cod;
+        document.getElementById('editFacNombre').value = nom;
+        document.getElementById('editFacDescripcion').value = desc;
+        document.getElementById('editFacActivo').checked = act;
+        document.getElementById('modalEditarFacultad').style.display = 'flex';
+    }
+
+    function openEditarArea(id, cod, nom, desc, act) {
+        document.getElementById('editAreaId').value = id;
+        document.getElementById('editAreaCodigo').value = cod;
+        document.getElementById('editAreaNombre').value = nom;
+        document.getElementById('editAreaDescripcion').value = desc;
+        document.getElementById('editAreaActivo').checked = act;
+        document.getElementById('modalEditarArea').style.display = 'flex';
+    }
+
+    function openEditarModalidad(id, tipo, mod, desc, act) {
+        document.getElementById('editModId').value = id;
+        document.getElementById('editModTipo').value = tipo;
+        document.getElementById('editModModalidad').value = mod;
+        document.getElementById('editModDescripcion').value = desc;
+        document.getElementById('editModActivo').checked = act;
+        document.getElementById('modalEditarModalidad').style.display = 'flex';
+    }
+
+    function openEditarProveedor(id, nom, tipo, pais, cont, email, tel, act) {
+        document.getElementById('editProvId').value = id;
+        document.getElementById('editProvNombre').value = nom;
+        document.getElementById('editProvTipo').value = tipo;
+        document.getElementById('editProvPais').value = pais;
+        document.getElementById('editProvContacto').value = cont;
+        document.getElementById('editProvEmail').value = email;
+        document.getElementById('editProvTel').value = tel;
+        document.getElementById('editProvActivo').checked = act;
+        document.getElementById('modalEditarProveedor').style.display = 'flex';
+    }
+
+    function openEditarProyecto(id, cod, nom, fuente, monto, act) {
+        document.getElementById('editPryId').value = id;
+        document.getElementById('editPryCodigo').value = cod;
+        document.getElementById('editPryNombre').value = nom;
+        document.getElementById('editPryFuente').value = fuente;
+        document.getElementById('editPryMonto').value = monto;
+        document.getElementById('editPryActivo').checked = act;
+        document.getElementById('modalEditarProyecto').style.display = 'flex';
+    }
+
+    function openCrearUsuarioModal() {
+        document.getElementById('modalCrearUsuario').style.display = 'flex';
+    }
+
+    function openEditarUsuario(id, uname, fn, ln, email, rol, act) {
+        document.getElementById('editUserId').value = id;
+        document.getElementById('editUserUsername').value = uname;
+        document.getElementById('editUserFirstName').value = fn;
+        document.getElementById('editUserLastName').value = ln;
+        document.getElementById('editUserEmail').value = email;
+        document.getElementById('editUserRol').value = rol;
+        document.getElementById('editUserIsActive').checked = act;
+        document.getElementById('modalEditarUsuario').style.display = 'flex';
+    }
+
+    function openPasswordModal(id, uname) {
+        document.getElementById('passUserId').value = id;
+        document.getElementById('passUserNombre').textContent = uname;
+        document.getElementById('modalPasswordUsuario').style.display = 'flex';
+    }
+
+    function confirmarEliminar(actionUrl, id, label) {
+        const form = document.getElementById('formConfirmarEliminar');
+        form.action = actionUrl;
+        document.getElementById('idRegistroEliminar').value = id;
+        document.getElementById('idUserEliminar').value = '';
+        document.getElementById('textoConfirmacionEliminar').textContent = label;
+        document.getElementById('modalConfirmarEliminar').style.display = 'flex';
+    }
+
+    function confirmarEliminarUsuario(id, uname) {
+        const form = document.getElementById('formConfirmarEliminar');
+        form.action = "{% url 'core:usuario_crud' 'eliminar' %}";
+        document.getElementById('idUserEliminar').value = id;
+        document.getElementById('idRegistroEliminar').value = '';
+        document.getElementById('textoConfirmacionEliminar').textContent = "Usuario: " + uname;
+        document.getElementById('modalConfirmarEliminar').style.display = 'flex';
+    }
+
+    function confirmarEliminarCapacitacionWeb(actionUrl, label) {
+        const form = document.getElementById('formConfirmarEliminar');
+        form.action = actionUrl;
+        document.getElementById('idRegistroEliminar').value = '';
+        document.getElementById('idUserEliminar').value = '';
+        document.getElementById('textoConfirmacionEliminar').textContent = label;
+        document.getElementById('modalConfirmarEliminar').style.display = 'flex';
+    }
+</script>
+{% endblock %}

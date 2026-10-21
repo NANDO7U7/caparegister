@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+
+{% block title %}Listado de Capacitaciones — SIGECAP{% endblock %}
+{% block page_title %}Catálogo Maestro de Capacitaciones{% endblock %}
+{% block page_subtitle %}Historial y oferta formativa institucional para docentes y personal administrativo{% endblock %}
+
+{% block header_buttons %}
+<a href="{% url 'capacitaciones:sistema_gestion' %}" class="btn btn-secondary">
+    <span class="material-symbols-outlined">analytics</span>
+    <span>Consola PIF · UGB</span>
+</a>
+<a href="{% url 'capacitaciones:calendario' %}" class="btn btn-outline">
+    <span class="material-symbols-outlined">calendar_month</span>
+    <span>Ver Calendario</span>
+</a>
+<a href="{% url 'capacitaciones:crear' %}" class="btn btn-primary">
+    <span class="material-symbols-outlined">add</span>
+    <span>Nueva Capacitación</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Alerta de Evidencias y Diplomas Pendientes -->
+{% if total_evidencias_pendientes > 0 %}
+<div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-md); padding: 14px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="material-symbols-outlined" style="color: var(--color-warning); font-size: 24px;">notification_important</span>
+        <div>
+            <strong style="color: #92400e; font-size: 13px;">Alerta de Evidencias Digitales:</strong>
+            <span style="color: #78350f; font-size: 13px;">Hay <strong>{{ total_evidencias_pendientes }} capacitaciones finalizadas</strong> que aún no tienen actas, listas de asistencia o diplomas cargados en el repositorio.</span>
+        </div>
+    </div>
+    <a href="{% url 'capacitaciones:lista' %}?evidencias_pendientes=1" class="btn btn-secondary" style="font-size: 11px; padding: 6px 14px; white-space: nowrap;">
+        <span>Ver Pendientes</span>
+        <span class="material-symbols-outlined" style="font-size: 14px;">arrow_forward</span>
+    </a>
+</div>
+{% endif %}
+
+<!-- Barra de Filtros Rápidos (Google Stitch Design) -->
+<div class="card" style="padding: 16px 24px; margin-bottom: 20px;">
+    <form method="GET" style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Buscar por código, tema o palabra clave...">
+        </div>
+
+        <div style="width: 160px;">
+            <select name="estado" class="form-control">
+                <option value="">Todos los Estados</option>
+                <option value="Planificada" {% if estado_filtro == 'Planificada' %}selected{% endif %}>Planificada</option>
+                <option value="En Curso" {% if estado_filtro == 'En Curso' %}selected{% endif %}>En Curso</option>
+                <option value="Finalizada" {% if estado_filtro == 'Finalizada' %}selected{% endif %}>Finalizada</option>
+                <option value="Cancelada" {% if estado_filtro == 'Cancelada' %}selected{% endif %}>Cancelada</option>
+            </select>
+        </div>
+
+        <div style="width: 170px;">
+            <select name="area" class="form-control">
+                <option value="">Todas las Áreas</option>
+                {% for area in areas %}
+                <option value="{{ area.id }}" {% if area_filtro == area.id|stringformat:"s" %}selected{% endif %}>{{ area.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="width: 180px;">
+            <select name="facultad" class="form-control">
+                <option value="">Todas las Facultades</option>
+                {% for f in facultades %}
+                <option value="{{ f.id }}" {% if facultad_filtro == f.id|stringformat:"s" %}selected{% endif %}>{{ f.codigo }} — {{ f.nombre|truncatechars:20 }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="padding: 10px 16px;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">filter_alt</span>
+            <span>Filtrar</span>
+        </button>
+
+        {% if query or estado_filtro or area_filtro or modalidad_filtro or facultad_filtro or solo_evidencias_pendientes %}
+        <a href="{% url 'capacitaciones:lista' %}" class="btn btn-outline" style="padding: 10px 14px;" title="Limpiar filtros">
+            <span class="material-symbols-outlined" style="font-size: 18px;">restart_alt</span>
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Tabla Principal de Capacitaciones -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span class="material-symbols-outlined" style="color: var(--color-primary);">format_list_bulleted</span>
+            <span>Registros Encontrados ({{ capacitaciones.count }})</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <a href="{% url 'capacitaciones:calendario' %}" class="btn btn-outline" style="font-size: 12px; padding: 6px 12px;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">calendar_month</span>
+                <span>Calendario</span>
+            </a>
+            <a href="{% url 'capacitaciones:crear' %}" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+                <span>Nueva Capacitación</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Título de la Capacitación</th>
+                    <th>Eje / Área</th>
+                    <th>Modalidad</th>
+                    <th>Horas</th>
+                    <th>Fechas</th>
+                    <th>Inscritos</th>
+                    <th>Estado</th>
+                    <th>Evidencias</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cap in capacitaciones %}
+                <tr>
+                    <td>
+                        <strong style="color: var(--color-primary);">{{ cap.codigo }}</strong>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">
+                            <a href="{% url 'capacitaciones:detalle' cap.id %}" style="color: inherit; text-decoration: none;">
+                                {{ cap.nombre }}
+                            </a>
+                        </div>
+                        <small style="color: var(--text-muted);">
+                            {{ cap.proveedor.nombre|default:"Facilitación Interna" }}
+                        </small>
+                    </td>
+                    <td>
+                        <span style="font-size: 11px; background: #e0e7ff; color: #1e3a8a; padding: 3px 6px; border-radius: 4px; font-weight: 500;">
+                            {{ cap.area_formacion.nombre|truncatechars:24 }}
+                        </span>
+                    </td>
+                    <td>{{ cap.tipo_modalidad.tipo }} <small>({{ cap.tipo_modalidad.modalidad }})</small></td>
+                    <td><strong>{{ cap.horas_duracion }} hrs</strong></td>
+                    <td>
+                        <span style="font-size: 11px;">{{ cap.fecha_inicio|date:"d/m/Y" }}</span><br>
+                        <small style="color: var(--text-muted);">al {{ cap.fecha_fin|date:"d/m/Y" }}</small>
+                    </td>
+                    <td>
+                        <div style="font-weight: 700; color: var(--color-secondary);">
+                            {{ cap.total_inscritos }} / {{ cap.cupo_maximo }}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge 
+                            {% if cap.estado == 'En Curso' %}badge-en-curso
+                            {% elif cap.estado == 'Finalizada' %}badge-finalizada
+                            {% elif cap.estado == 'Planificada' %}badge-planificada
+                            {% else %}badge-cancelada{% endif %}">
+                            {{ cap.estado }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if cap.tiene_evidencias_pendientes %}
+                        <span class="badge badge-cancelada" title="Falta cargar actas, listas o diplomas">
+                            <span class="material-symbols-outlined" style="font-size: 13px;">warning</span> Pendientes
+                        </span>
+                        {% elif cap.evidencias.count > 0 %}
+                        <span class="badge badge-finalizada" title="{{ cap.evidencias.count }} evidencias cargadas">
+                            <span class="material-symbols-outlined" style="font-size: 13px;">folder</span> {{ cap.evidencias.count }} Archivos
+                        </span>
+                        {% else %}
+                        <span style="font-size: 11px; color: var(--text-muted);">En plazo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                            <a href="{% url 'capacitaciones:detalle' cap.id %}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" title="Ver Ficha Completa">
+                                <span class="material-symbols-outlined" style="font-size: 15px;">visibility</span>
+                            </a>
+                            <a href="{% url 'capacitaciones:editar' cap.id %}" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px;" title="Editar Capacitación">
+                                <span class="material-symbols-outlined" style="font-size: 15px;">edit</span>
+                            </a>
+                            <a href="{% url 'capacitaciones:duplicar' cap.id %}" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px;" title="Duplicar / Clonar Capacitación">
+                                <span class="material-symbols-outlined" style="font-size: 15px;">content_copy</span>
+                            </a>
+                            <a href="{% url 'capacitaciones:qr_asistencia' cap.id %}" target="_blank" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px;" title="Póster QR de Asistencia">
+                                <span class="material-symbols-outlined" style="font-size: 15px;">qr_code_2</span>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" style="text-align: center; padding: 48px 24px; color: var(--text-muted);">
+                        <span class="material-symbols-outlined" style="font-size: 48px; color: #cbd5e1; margin-bottom: 12px;">search_off</span>
+                        <p style="font-size: 15px; font-weight: 600;">No se encontraron capacitaciones con los criterios especificados.</p>
+                        <p style="font-size: 13px;">Prueba ajustando los filtros o registra una nueva capacitación.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

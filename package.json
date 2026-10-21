@@ -1,0 +1,14 @@
+{
+  "name": "practica-sigecap-e2e",
+  "version": "1.0.0",
+  "description": "Playwright Test suite for SIGECAP / UGB PIF",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

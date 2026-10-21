@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if accion == 'Editar' %}Editar Capacitación: {{ capacitacion.codigo }}{% else %}Nueva Capacitación{% endif %} — SIGECAP{% endblock %}
+{% block page_title %}{% if accion == 'Editar' %}Editar Capacitación: {{ capacitacion.codigo }}{% else %}Registrar Nueva Capacitación{% endif %}{% endblock %}
+{% block page_subtitle %}{% if accion == 'Editar' %}Modificación y actualización de información académica y organizativa{% else %}Ingreso de información académica, organizativa y presupuestal del evento formativo{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 960px; margin: 0 auto;">
+    <form method="POST" action="{% if accion == 'Editar' %}{% url 'capacitaciones:editar' capacitacion.id %}{% else %}{% url 'capacitaciones:crear' %}{% endif %}">
+        {% csrf_token %}
+        
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-secondary);">{% if accion == 'Editar' %}edit_note{% else %}edit_calendar{% endif %}</span>
+                <span>{% if accion == 'Editar' %}Formulario de Edición de Formación{% else %}Datos Generales de la Formación{% endif %}</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                {% if accion == 'Editar' %}
+                <a href="{% url 'capacitaciones:detalle' capacitacion.id %}" class="btn btn-outline" style="padding: 6px 14px; font-size: 12px;">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">visibility</span>
+                    <span>Ver Ficha</span>
+                </a>
+                {% endif %}
+                <a href="{% url 'capacitaciones:lista' %}" class="btn btn-outline" style="padding: 6px 14px; font-size: 12px;">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">arrow_back</span>
+                    <span>Volver al Listado</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="form-grid" style="margin-bottom: 24px;">
+            <div class="form-group">
+                <label for="codigo">Código Institucional *</label>
+                <input type="text" id="codigo" name="codigo" required class="form-control" placeholder="Ej. CAP-2026-005" value="{% if accion == 'Editar' %}{{ capacitacion.codigo }}{% else %}{{ next_code }}{% endif %}">
+            </div>
+
+            <div class="form-group" style="grid-column: span 2;">
+                <label for="nombre">Nombre de la Capacitación / Curso *</label>
+                <input type="text" id="nombre" name="nombre" required class="form-control" placeholder="Ej. Estrategias de Evaluación del Aprendizaje Basado en Competencias" value="{% if accion == 'Editar' %}{{ capacitacion.nombre }}{% endif %}">
+            </div>
+
+            <div class="form-group" style="grid-column: span 3;">
+                <label for="descripcion">Objetivo de Aprendizaje / Descripción</label>
+                <textarea id="descripcion" name="descripcion" class="form-control" placeholder="Describa brevemente las competencias a desarrollar...">{% if accion == 'Editar' %}{{ capacitacion.descripcion|default:'' }}{% endif %}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="area_formacion">Área de Formación / Eje *</label>
+                <select id="area_formacion" name="area_formacion" required class="form-control">
+                    <option value="">Seleccione un Área</option>
+                    {% for area in areas %}
+                    <option value="{{ area.id }}" {% if accion == 'Editar' and capacitacion.area_formacion_id == area.id %}selected{% endif %}>{{ area.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tipo_modalidad">Tipo y Modalidad *</label>
+                <select id="tipo_modalidad" name="tipo_modalidad" required class="form-control">
+                    <option value="">Seleccione Modalidad</option>
+                    {% for tm in tipos_modalidad %}
+                    <option value="{{ tm.id }}" {% if accion == 'Editar' and capacitacion.tipo_modalidad_id == tm.id %}selected{% endif %}>{{ tm.tipo }} — {{ tm.modalidad }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="estado">Estado de la Capacitación</label>
+                <select id="estado" name="estado" class="form-control">
+                    <option value="Planificada" {% if accion == 'Editar' and capacitacion.estado == 'Planificada' %}selected{% elif accion != 'Editar' %}selected{% endif %}>Planificada</option>
+                    <option value="En Curso" {% if accion == 'Editar' and capacitacion.estado == 'En Curso' %}selected{% endif %}>En Curso</option>
+                    <option value="Finalizada" {% if accion == 'Editar' and capacitacion.estado == 'Finalizada' %}selected{% endif %}>Finalizada</option>
+                    <option value="Cancelada" {% if accion == 'Editar' and capacitacion.estado == 'Cancelada' %}selected{% endif %}>Cancelada</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="horas_duracion">Horas Académicas / Duración *</label>
+                <input type="number" id="horas_duracion" name="horas_duracion" required min="1" value="{% if accion == 'Editar' %}{{ capacitacion.horas_duracion }}{% else %}20{% endif %}" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label for="fecha_inicio">Fecha de Inicio *</label>
+                <input type="date" id="fecha_inicio" name="fecha_inicio" required value="{% if accion == 'Editar' %}{{ capacitacion.fecha_inicio|date:'Y-m-d' }}{% endif %}" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label for="fecha_fin">Fecha de Finalización *</label>
+                <input type="date" id="fecha_fin" name="fecha_fin" required value="{% if accion == 'Editar' %}{{ capacitacion.fecha_fin|date:'Y-m-d' }}{% endif %}" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label for="cupo_maximo">Cupo Máximo de Participantes</label>
+                <input type="number" id="cupo_maximo" name="cupo_maximo" value="{% if accion == 'Editar' %}{{ capacitacion.cupo_maximo }}{% else %}35{% endif %}" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label for="proveedor">Entidad / Proveedor Capacitador</label>
+                <select id="proveedor" name="proveedor" class="form-control">
+                    <option value="">Facilitador Interno / Sin Proveedor Externo</option>
+                    {% for prov in proveedores %}
+                    <option value="{{ prov.id }}" {% if accion == 'Editar' and capacitacion.proveedor_id == prov.id %}selected{% endif %}>{{ prov.nombre }} ({{ prov.tipo }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="proyecto">Fondo / Proyecto de Financiamiento</label>
+                <select id="proyecto" name="proyecto" class="form-control">
+                    <option value="">Fondos Operativos Propios</option>
+                    {% for proy in proyectos %}
+                    <option value="{{ proy.id }}" {% if accion == 'Editar' and capacitacion.proyecto_id == proy.id %}selected{% endif %}>{{ proy.codigo }} — {{ proy.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" style="grid-column: span 3;">
+                <label for="lugar_o_enlace">Lugar Físico o Enlace de la Sesión Virtual</label>
+                <input type="text" id="lugar_o_enlace" name="lugar_o_enlace" class="form-control" placeholder="Ej. Aula Magna / Enlace de Microsoft Teams / Zoom" value="{% if accion == 'Editar' %}{{ capacitacion.lugar_o_enlace|default:'' }}{% endif %}">
+            </div>
+
+            <div class="form-group" style="grid-column: span 3;">
+                <label>Facultades Destinatarias (Mantén presionada tecla Ctrl para seleccionar varias):</label>
+                <select name="facultades" multiple class="form-control" style="height: 120px;">
+                    {% for fac in facultades %}
+                    <option value="{{ fac.id }}" {% if accion == 'Editar' and fac.id in facultades_seleccionadas %}selected{% endif %}>{{ fac.codigo }} — {{ fac.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border-subtle); padding-top: 20px;">
+            <a href="{% if accion == 'Editar' %}{% url 'capacitaciones:detalle' capacitacion.id %}{% else %}{% url 'capacitaciones:lista' %}{% endif %}" class="btn btn-outline">Cancelar</a>
+            <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">
+                <span class="material-symbols-outlined">save</span>
+                <span>{% if accion == 'Editar' %}Guardar Cambios{% else %}Guardar Capacitación{% endif %}</span>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

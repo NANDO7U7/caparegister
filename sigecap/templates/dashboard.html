@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Principal — SIGECAP{% endblock %}
+{% block page_title %}Panel de Control y Analíticas{% endblock %}
+{% block page_subtitle %}Monitoreo del Plan Operativo de Formación Docente y Administrativa{% endblock %}
+
+{% block header_buttons %}
+<a href="{% url 'capacitaciones:sistema_gestion' %}" class="btn btn-primary">
+    <span class="material-symbols-outlined">analytics</span>
+    <span>Consola PIF · UGB</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Grid de 5 KPIs Principales (Material 3 Cards) -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-icon-box kpi-icon-blue">
+            <span class="material-symbols-outlined">event_available</span>
+        </div>
+        <div class="kpi-info">
+            <h4>Capacitaciones</h4>
+            <div class="kpi-value">{{ total_capacitaciones }}</div>
+            <div class="kpi-trend">
+                <span class="material-symbols-outlined" style="font-size: 14px;">check_circle</span>
+                <span>Eventos registrados</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon-box kpi-icon-green">
+            <span class="material-symbols-outlined">school</span>
+        </div>
+        <div class="kpi-info">
+            <h4>Docentes Formados</h4>
+            <div class="kpi-value">{{ total_docentes }}</div>
+            <div class="kpi-trend">
+                <span class="material-symbols-outlined" style="font-size: 14px;">trending_up</span>
+                <span>Personal con aprobación</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon-box kpi-icon-purple">
+            <span class="material-symbols-outlined">groups</span>
+        </div>
+        <div class="kpi-info">
+            <h4>Inscripciones</h4>
+            <div class="kpi-value">{{ total_participantes }}</div>
+            <div class="kpi-trend">
+                <span class="material-symbols-outlined" style="font-size: 14px;">verified</span>
+                <span>{{ total_aprobados }} Aprobadas</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon-box kpi-icon-amber">
+            <span class="material-symbols-outlined">schedule</span>
+        </div>
+        <div class="kpi-info">
+            <h4>Horas Impartidas</h4>
+            <div class="kpi-value">{{ total_horas }}h</div>
+            <div class="kpi-trend">
+                <span class="material-symbols-outlined" style="font-size: 14px;">history_edu</span>
+                <span>Horas académicas</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon-box kpi-icon-cyan">
+            <span class="material-symbols-outlined">payments</span>
+        </div>
+        <div class="kpi-info">
+            <h4>Gasto Ejecutado</h4>
+            <div class="kpi-value">L. {{ presupuesto_ejecutado|floatformat:0 }}</div>
+            <div class="kpi-trend">
+                <span class="material-symbols-outlined" style="font-size: 14px;">account_balance</span>
+                <span>Inversión institucional</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon-box" style="background-color: #fef3c7; color: #b45309;">
+            <span class="material-symbols-outlined">star</span>
+        </div>
+        <div class="kpi-info">
+            <h4>Satisfacción</h4>
+            <div class="kpi-value" style="color: #b45309;">{{ satisfaccion_promedio }} <small style="font-size: 14px;">/ 5</small></div>
+            <div class="kpi-trend">
+                <span class="material-symbols-outlined" style="font-size: 14px;">sentiment_very_satisfied</span>
+                <span>{{ pct_satisfaccion }}% CSAT Calidad</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sección de Gráficos y Visualizaciones -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;">
+    <!-- Gráfico de Tendencia Mensual -->
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-secondary);">monitoring</span>
+                <span>Tendencia de Participación y Formaciones</span>
+            </div>
+            <span style="font-size: 12px; color: var(--text-muted);">Año Fiscal {{ CURRENT_YEAR }}</span>
+        </div>
+        <div style="height: 260px; position: relative;">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Gráfico de Distribución por Eje / Área -->
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="material-symbols-outlined" style="color: var(--color-primary);">pie_chart</span>
+                <span>Distribución por Áreas</span>
+            </div>
+        </div>
+        <div style="height: 260px; position: relative; display: flex; align-items: center; justify-content: center;">
+            <canvas id="areaChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Capacitaciones Recientes (Estilo Google Stitch) -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span class="material-symbols-outlined" style="color: var(--color-secondary);">event_note</span>
+            <span>Capacitaciones Recientes y en Curso</span>
+        </div>
+        <a href="{% url 'capacitaciones:lista' %}" class="btn btn-outline" style="font-size: 12px; padding: 6px 14px;">
+            <span>Ver Listado Completo</span>
+            <span class="material-symbols-outlined" style="font-size: 16px;">arrow_forward</span>
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre de la Capacitación</th>
+                    <th>Área de Formación</th>
+                    <th>Tipo / Modalidad</th>
+                    <th>Duración</th>
+                    <th>Fechas</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cap in capacitaciones_recientes %}
+                <tr>
+                    <td>
+                        <strong style="color: var(--color-primary); font-size: 12px;">{{ cap.codigo }}</strong>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: var(--text-primary);">{{ cap.nombre }}</div>
+                        <small style="color: var(--text-muted);">{{ cap.proveedor.nombre|default:"Facilitador Interno" }}</small>
+                    </td>
+                    <td>
+                        <span style="font-size: 12px; background: #e0e7ff; color: #1e3a8a; padding: 3px 8px; border-radius: 4px; font-weight: 500;">
+                            {{ cap.area_formacion.nombre }}
+                        </span>
+                    </td>
+                    <td>{{ cap.tipo_modalidad.tipo }} ({{ cap.tipo_modalidad.modalidad }})</td>
+                    <td><strong>{{ cap.horas_duracion }} hrs</strong></td>
+                    <td>{{ cap.fecha_inicio|date:"d/M" }} - {{ cap.fecha_fin|date:"d/M/Y" }}</td>
+                    <td>
+                        <span class="badge 
+                            {% if cap.estado == 'En Curso' %}badge-en-curso
+                            {% elif cap.estado == 'Finalizada' %}badge-finalizada
+                            {% elif cap.estado == 'Planificada' %}badge-planificada
+                            {% else %}badge-cancelada{% endif %}">
+                            {{ cap.estado }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'capacitaciones:detalle' cap.id %}" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px;">
+                            <span class="material-symbols-outlined" style="font-size: 14px;">visibility</span>
+                            <span>Detalle</span>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                        <span class="material-symbols-outlined" style="font-size: 40px; margin-bottom: 8px; color: #cbd5e1;">inbox</span>
+                        <p style="font-weight: 500;">No hay capacitaciones registradas todavía.</p>
+                        <a href="{% url 'capacitaciones:crear' %}" class="btn btn-primary" style="margin-top: 12px;">
+                            <span class="material-symbols-outlined">add</span>
+                            <span>Registrar Primera Capacitación</span>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Gráfico de Tendencia Mensual
+    const ctxTrend = document.getElementById('trendChart').getContext('2d');
+    new Chart(ctxTrend, {
+        type: 'line',
+        data: {
+            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+            datasets: [{
+                label: 'Participantes Capacitados',
+                data: [12, 19, 28, 35, 42, 60, 48, 55, 70, 65, 80, 95],
+                borderColor: '#0051d5',
+                backgroundColor: 'rgba(0, 81, 213, 0.08)',
+                fill: true,
+                tension: 0.35,
+                borderWidth: 2.5,
+                pointBackgroundColor: '#0051d5',
+                pointRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+
+    // Gráfico Doughnut por Áreas
+    const ctxArea = document.getElementById('areaChart').getContext('2d');
+    const areaLabels = {{ area_labels|safe }};
+    const areaValues = {{ area_values|safe }};
+
+    new Chart(ctxArea, {
+        type: 'doughnut',
+        data: {
+            labels: areaLabels.length > 0 ? areaLabels : ['Pedagógica', 'Tecnológica', 'Investigación', 'Habilidades Blandas', 'Gestión'],
+            datasets: [{
+                data: areaValues.length > 0 ? areaValues : [35, 25, 20, 12, 8],
+                backgroundColor: ['#00236f', '#0051d5', '#316bf3', '#60a5fa', '#93c5fd'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 10, font: { size: 11 } }
+                }
+            },
+            cutout: '70%'
+        }
+    });
+});
+</script>
+{% endblock %}

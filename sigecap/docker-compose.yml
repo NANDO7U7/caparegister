@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sigecap_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-sigecap_db}
+      POSTGRES_USER: ${DB_USER:-sigecap_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sigecap_secure_password_2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - sigecap_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sigecap_admin} -d ${DB_NAME:-sigecap_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  sigecap_postgres_data:
+    name: sigecap_postgres_data

@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}Padrón de Participantes — SIGECAP{% endblock %}
+{% block page_title %}Padrón Docente y Administrativo{% endblock %}
+{% block page_subtitle %}Historial consolidado de colaboradores capacitados y horas acumuladas{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="card" style="padding: 16px 24px; margin-bottom: 20px;">
+    <form method="GET" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 240px;">
+            <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Buscar por nombre, código de empleado o DNI...">
+        </div>
+
+        <div style="width: 180px;">
+            <select name="tipo" class="form-control">
+                <option value="">Todos los Tipos</option>
+                <option value="Docente" {% if tipo_filtro == 'Docente' %}selected{% endif %}>Docente</option>
+                <option value="Administrativo" {% if tipo_filtro == 'Administrativo' %}selected{% endif %}>Administrativo</option>
+                <option value="Ambos" {% if tipo_filtro == 'Ambos' %}selected{% endif %}>Docente y Administrativo</option>
+            </select>
+        </div>
+
+        <div style="width: 220px;">
+            <select name="facultad" class="form-control">
+                <option value="">Todas las Facultades</option>
+                {% for fac in facultades %}
+                <option value="{{ fac.id }}" {% if facultad_filtro == fac.id|stringformat:"s" %}selected{% endif %}>{{ fac.codigo }} - {{ fac.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="padding: 10px 18px;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">filter_alt</span>
+            <span>Filtrar</span>
+        </button>
+
+        {% if query or tipo_filtro or facultad_filtro %}
+        <a href="{% url 'personas:lista' %}" class="btn btn-outline" style="padding: 10px 14px;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">restart_alt</span>
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Tabla de Participantes -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span class="material-symbols-outlined" style="color: var(--color-primary);">badge</span>
+            <span>Personal Registrado ({{ personas.count }})</span>
+        </div>
+        <a href="{% url 'personas:crear' %}" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px;">
+            <span class="material-symbols-outlined" style="font-size: 16px;">person_add</span>
+            <span>Nuevo Docente / Personal</span>
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre Completo</th>
+                    <th>Tipo de Personal</th>
+                    <th>Facultad / Unidad</th>
+                    <th>Cargo Actual</th>
+                    <th>Cursos Cursados</th>
+                    <th>Horas Acumuladas</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in personas %}
+                <tr>
+                    <td><strong>{{ p.codigo_empleado }}</strong></td>
+                    <td>
+                        <a href="{% url 'personas:ficha' p.id %}" style="font-weight: 600; color: var(--color-primary); text-decoration: none;">
+                            {{ p.nombre_completo }}
+                        </a>
+                        <br><small style="color: var(--text-muted);">{{ p.email_institucional|default:"Sin correo" }}</small>
+                    </td>
+                    <td>
+                        <span class="badge {% if p.tipo_personal == 'Docente' %}badge-docente{% elif p.tipo_personal == 'Administrativo' %}badge-admin{% else %}badge-ambos{% endif %}">
+                            {{ p.tipo_personal }}
+                        </span>
+                    </td>
+                    <td>{{ p.facultad.codigo|default:"Sin asignar" }}</td>
+                    <td>{{ p.cargo_actual|default:"-" }}</td>
+                    <td>
+                        <strong style="color: var(--color-secondary);">{{ p.total_cursos }}</strong> ({{ p.total_aprobados }} aprobados)
+                    </td>
+                    <td>
+                        <span style="font-weight: 700; color: var(--color-success); font-size: 14px;">
+                            {{ p.total_horas_acumuladas|default:0 }} hrs
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'personas:ficha' p.id %}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
+                            <span class="material-symbols-outlined" style="font-size: 15px;">history_edu</span>
+                            <span>Ver Historial</span>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                        No se encontraron registros de personal en el padrón.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

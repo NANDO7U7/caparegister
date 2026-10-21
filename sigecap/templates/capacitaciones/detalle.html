@@ -1,0 +1,528 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ capacitacion.codigo }} — {{ capacitacion.nombre }}{% endblock %}
+{% block page_title %}{{ capacitacion.codigo }}{% endblock %}
+{% block page_subtitle %}{{ capacitacion.nombre }}{% endblock %}
+
+{% block content %}
+<!-- Cabecera de la Capacitación -->
+<div class="card" style="margin-bottom: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+        <div style="flex: 1; min-width: 300px;">
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+                <span class="badge 
+                    {% if capacitacion.estado == 'En Curso' %}badge-en-curso
+                    {% elif capacitacion.estado == 'Finalizada' %}badge-finalizada
+                    {% elif capacitacion.estado == 'Planificada' %}badge-planificada
+                    {% else %}badge-cancelada{% endif %}">
+                    {{ capacitacion.estado }}
+                </span>
+                <span style="font-size: 13px; color: var(--text-muted);">
+                    {{ capacitacion.area_formacion.nombre }} • {{ capacitacion.tipo_modalidad.tipo }} ({{ capacitacion.tipo_modalidad.modalidad }})
+                </span>
+            </div>
+            <h2 style="font-size: 22px; color: var(--color-primary); font-weight: 800; margin-bottom: 12px;">
+                {{ capacitacion.nombre }}
+            </h2>
+            <p style="color: var(--text-secondary); line-height: 1.6;">
+                {{ capacitacion.descripcion|default:"Sin descripción adicional." }}
+            </p>
+        </div>
+
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <a href="{% url 'capacitaciones:editar' capacitacion.id %}" class="btn btn-secondary" title="Editar información de la capacitación">
+                <span class="material-symbols-outlined" style="font-size: 16px;">edit</span>
+                <span>Editar</span>
+            </a>
+            <a href="{% url 'capacitaciones:duplicar' capacitacion.id %}" class="btn btn-secondary" title="Crear una nueva edición basada en esta">
+                <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
+                <span>Duplicar</span>
+            </a>
+            <a href="{% url 'capacitaciones:qr_asistencia' capacitacion.id %}" target="_blank" class="btn btn-primary" title="Proyectar o imprimir código QR para el aula">
+                <span class="material-symbols-outlined" style="font-size: 16px;">qr_code_2</span>
+                <span>Póster QR</span>
+            </a>
+            <button type="button" onclick="document.getElementById('modalEliminarCapacitacionDetalle').style.display='flex';" class="btn btn-outline" style="color: var(--color-danger); border-color: rgba(220, 38, 38, 0.3);" title="Eliminar capacitación permanentemente sin ir a Django Admin">
+                <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>
+                <span>Eliminar</span>
+            </button>
+            <a href="{% url 'capacitaciones:lista' %}" class="btn btn-outline">
+                <span class="material-symbols-outlined" style="font-size: 16px;">arrow_back</span>
+                <span>Listado</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Metadatos Clave en Barra -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-subtle);">
+        <div>
+            <small style="color: var(--text-muted); text-transform: uppercase; font-size: 11px; font-weight: 600;">Duración</small>
+            <div style="font-size: 15px; font-weight: 700; color: var(--text-primary);">{{ capacitacion.horas_duracion }} Horas</div>
+        </div>
+        <div>
+            <small style="color: var(--text-muted); text-transform: uppercase; font-size: 11px; font-weight: 600;">Período</small>
+            <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">
+                {{ capacitacion.fecha_inicio|date:"d/M/Y" }} - {{ capacitacion.fecha_fin|date:"d/M/Y" }}
+            </div>
+        </div>
+        <div>
+            <small style="color: var(--text-muted); text-transform: uppercase; font-size: 11px; font-weight: 600;">Proveedor / Docente</small>
+            <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">
+                {{ capacitacion.proveedor.nombre|default:"Personal Interno" }}
+            </div>
+        </div>
+        <div>
+            <small style="color: var(--text-muted); text-transform: uppercase; font-size: 11px; font-weight: 600;">Inscripciones</small>
+            <div style="font-size: 15px; font-weight: 700; color: var(--color-secondary);">
+                {{ participaciones.count }} / {{ capacitacion.cupo_maximo }}
+            </div>
+        </div>
+        <div>
+            <small style="color: var(--text-muted); text-transform: uppercase; font-size: 11px; font-weight: 600;">Asistencias QR</small>
+            <div style="font-size: 15px; font-weight: 700; color: var(--color-success);">
+                {{ capacitacion.total_asistencias }} Confirmadas
+            </div>
+        </div>
+        <div>
+            <small style="color: var(--text-muted); text-transform: uppercase; font-size: 11px; font-weight: 600;">Estado Evidencias</small>
+            <div style="margin-top: 2px;">
+                {% if capacitacion.tiene_evidencias_pendientes %}
+                <span class="badge badge-cancelada" style="font-size: 10px;">Pendientes (Crítico)</span>
+                {% elif capacitacion.evidencias.count > 0 %}
+                <span class="badge badge-finalizada" style="font-size: 10px;">Completas ({{ capacitacion.evidencias.count }})</span>
+                {% else %}
+                <span class="badge badge-planificada" style="font-size: 10px;">En Plazo</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grid de Participantes e Inserción Directa -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span class="material-symbols-outlined" style="color: var(--color-secondary);">how_to_reg</span>
+            <span>Participantes Inscritos y Evaluación ({{ participaciones.count }})</span>
+        </div>
+    </div>
+
+    <!-- Formulario para Inscribir Participante -->
+    <div style="background-color: var(--bg-surface-secondary); padding: 16px 20px; border-radius: var(--radius-md); margin-bottom: 20px; border: 1px dashed #cbd5e1;">
+        <form method="POST" action="{% url 'capacitaciones:inscribir' capacitacion.id %}" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+            {% csrf_token %}
+            <div style="flex: 2; min-width: 250px;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">
+                    Seleccionar Docente o Administrativo:
+                </label>
+                <select name="persona_id" required class="form-control">
+                    <option value="">-- Seleccione del Padrón --</option>
+                    {% for p in personas_disponibles %}
+                    <option value="{{ p.id }}">{{ p.nombre_completo }} ({{ p.codigo_empleado }} - {{ p.tipo_personal }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="width: 140px;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">
+                    Estado:
+                </label>
+                <select name="estado_asistencia" class="form-control">
+                    <option value="Inscrito">Inscrito</option>
+                    <option value="Asistió">Asistió</option>
+                    <option value="Aprobó">Aprobó</option>
+                    <option value="No Completó">No Completó</option>
+                </select>
+            </div>
+
+            <div style="width: 110px;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">
+                    Nota (0-100):
+                </label>
+                <input type="number" name="calificacion" min="0" max="100" class="form-control" placeholder="Ej. 90">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="padding: 10px 18px;">
+                <span class="material-symbols-outlined" style="font-size: 18px;">person_add</span>
+                <span>Asignar</span>
+            </button>
+        </form>
+    </div>
+
+    <!-- Tabla de Participantes -->
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre Completo</th>
+                    <th>Tipo</th>
+                    <th>Facultad / Unidad</th>
+                    <th>Estado Asistencia</th>
+                    <th>Calificación</th>
+                    <th>Horas</th>
+                    <th>Certificado</th>
+                    <th style="width: 80px; text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for part in participaciones %}
+                <tr>
+                    <td><strong>{{ part.persona.codigo_empleado }}</strong></td>
+                    <td>
+                        <a href="{% url 'personas:ficha' part.persona.id %}" style="font-weight: 600; color: var(--color-primary); text-decoration: none;">
+                            {{ part.persona.nombre_completo }}
+                        </a>
+                    </td>
+                    <td>
+                        <span class="badge {% if part.persona.tipo_personal == 'Docente' %}badge-docente{% else %}badge-admin{% endif %}">
+                            {{ part.persona.tipo_personal }}
+                        </span>
+                    </td>
+                    <td>{{ part.persona.facultad.codigo|default:"General" }}</td>
+                    <td>
+                        <span class="badge 
+                            {% if part.estado_asistencia == 'Aprobó' %}badge-finalizada
+                            {% elif part.estado_asistencia == 'Inscrito' %}badge-planificada
+                            {% elif part.estado_asistencia == 'Asistió' %}badge-en-curso
+                            {% else %}badge-cancelada{% endif %}">
+                            {{ part.estado_asistencia }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if part.calificacion %}
+                            <strong>{{ part.calificacion }} / 100</strong>
+                        {% else %}
+                            <span style="color: var(--text-muted);">-</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ part.horas_acreditadas|default:capacitacion.horas_duracion }} hrs</td>
+                    <td>
+                        {% if part.certificado_emitido or part.estado_asistencia == 'Aprobó' %}
+                            <span class="material-symbols-outlined" style="color: var(--color-success);" title="Certificado Listo">verified</span>
+                        {% else %}
+                            <span class="material-symbols-outlined" style="color: var(--text-muted);" title="Pendiente">schedule</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <form method="POST" action="{% url 'capacitaciones:eliminar_participante' capacitacion.id part.id %}" style="margin: 0; display: inline;" onsubmit="return confirm('¿Retirar a {{ part.persona.nombre_completo|escapejs }} de esta capacitación?');">
+                            {% csrf_token %}
+                            <button type="submit" title="Retirar participante" style="border: 1px solid rgba(220, 38, 38, 0.3); background: #fff5f5; color: #dc2626; border-radius: 4px; padding: 2px 6px; cursor: pointer;">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">person_remove</span>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 24px; color: var(--text-muted);">
+                        No hay participantes asignados todavía a esta capacitación. Usa el formulario arriba para agregar docentes o personal.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Sección de Evidencias Digitales y Diplomas de Respaldo -->
+<div class="card" id="evidencias">
+    <div class="card-header">
+        <div class="card-title">
+            <span class="material-symbols-outlined" style="color: var(--color-primary);">folder_shared</span>
+            <span>Evidencias y Documentos de Respaldo ({{ evidencias.count }})</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button type="button" onclick="document.getElementById('modalEvidencia').style.display='flex';" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">cloud_upload</span>
+                <span>+ Cargar Evidencia / Acta</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Indicador de Estado de Evidencias -->
+    <div style="margin-bottom: 16px;">
+        {% if capacitacion.tiene_evidencias_pendientes %}
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-sm); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span class="material-symbols-outlined" style="color: #dc2626;">warning</span>
+                <span style="font-size: 13px; color: #991b1b; font-weight: 600;">
+                    Atención: Este curso está en estado <strong>Finalizada</strong> pero aún no cuenta con listas firmadas ni constancias subidas al repositorio.
+                </span>
+            </div>
+            <button type="button" onclick="document.getElementById('modalEvidencia').style.display='flex';" class="btn btn-secondary" style="font-size: 11px; padding: 4px 12px;">
+                Cargar Ahora
+            </button>
+        </div>
+        {% elif evidencias.count > 0 %}
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-sm); padding: 10px 16px; display: flex; align-items: center; gap: 10px;">
+            <span class="material-symbols-outlined" style="color: #16a34a;">check_circle</span>
+            <span style="font-size: 13px; color: #166534; font-weight: 600;">
+                Expediente digital respaldado con {{ evidencias.count }} documento(s) oficial(es).
+            </span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Tabla de Evidencias -->
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Tipo de Evidencia</th>
+                    <th>Nombre del Archivo</th>
+                    <th>Descripción / Contenido</th>
+                    <th>Tamaño</th>
+                    <th>Fecha de Registro</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ev in evidencias %}
+                <tr>
+                    <td>
+                        <span style="font-weight: 600; color: var(--color-primary); font-size: 12px;">
+                            <span class="material-symbols-outlined" style="font-size: 15px; vertical-align: middle;">description</span>
+                            {{ ev.tipo_evidencia }}
+                        </span>
+                    </td>
+                    <td>
+                        <strong style="color: #0f172a; font-size: 13px;">{{ ev.nombre_original }}</strong>
+                    </td>
+                    <td>
+                        <span style="font-size: 12px; color: var(--text-secondary);">
+                            {{ ev.descripcion|default:"Expediente institucional cargado." }}
+                        </span>
+                    </td>
+                    <td>
+                        <span style="font-size: 11px; color: var(--text-muted);">
+                            {{ ev.tamano_bytes|filesizeformat }}
+                        </span>
+                    </td>
+                    <td>
+                        <span style="font-size: 11px;">{{ ev.created_at|date:"d/m/Y H:i" }}</span>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span class="badge badge-finalizada" style="font-size: 11px;">
+                                <span class="material-symbols-outlined" style="font-size: 13px;">verified</span> Verificado
+                            </span>
+                            <form method="POST" action="{% url 'capacitaciones:eliminar_evidencia' capacitacion.id ev.id %}" style="margin: 0; display: inline;" onsubmit="return confirm('¿Eliminar la evidencia {{ ev.nombre_original|escapejs }}?');">
+                                {% csrf_token %}
+                                <button type="submit" title="Eliminar evidencia" style="border: 1px solid rgba(220, 38, 38, 0.3); background: #fff5f5; color: #dc2626; border-radius: 4px; padding: 2px 6px; cursor: pointer; display: inline-flex; align-items: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 14px;">delete</span>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 24px; color: var(--text-muted);">
+                        <span class="material-symbols-outlined" style="font-size: 32px; color: #cbd5e1;">folder_open</span>
+                        <p style="margin-top: 6px; font-size: 13px;">No hay evidencias ni actas cargadas todavía. Haz clic en <strong>+ Cargar Evidencia / Acta</strong> para respaldar este evento.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal de Carga de Evidencia Digital -->
+<div id="modalEvidencia" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 520px; padding: 28px; box-shadow: var(--shadow-lg);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="color: var(--color-primary); font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined" style="color: var(--color-secondary);">cloud_upload</span>
+                <span>Cargar Evidencia / Acta / Diplomas</span>
+            </h3>
+            <button type="button" onclick="document.getElementById('modalEvidencia').style.display='none';" style="border: none; background: none; cursor: pointer; font-size: 20px; color: var(--text-muted);">&times;</button>
+        </div>
+
+        <form method="POST" action="{% url 'capacitaciones:cargar_evidencia' capacitacion.id %}" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 4px;">
+                    Tipo de Evidencia Documental: *
+                </label>
+                <select name="tipo_evidencia" required class="form-control">
+                    <option value="Lista de Asistencia">Lista de Asistencia Firmada / Escaneo QR</option>
+                    <option value="Certificados Emitidos">Copia de Diplomas / Certificados</option>
+                    <option value="Fotografías">Fotografías del Evento / Capturas Aula Virtual</option>
+                    <option value="Informe Final">Informe Final de Resultados del Facilitador</option>
+                    <option value="Temario / Sílabo">Temario / Guía Metodológica</option>
+                    <option value="Facturas / Recibos">Comprobantes Financieros / Honorarios</option>
+                    <option value="Otro">Otro Documento de Respaldo</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 4px;">
+                    Nombre del Documento / Título:
+                </label>
+                <input type="text" name="nombre_documento" class="form-control" placeholder="Ej. Acta_Asistencia_Firmada_Grupo1">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 4px;">
+                    Archivo Digital (PDF, JPG, PNG, DOCX):
+                </label>
+                <input type="file" name="archivo" class="form-control">
+                <small style="color: var(--text-muted); font-size: 11px;">Opcional si se valida el registro físico institucional.</small>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 4px;">
+                    Observaciones o Notas de Verificación:
+                </label>
+                <textarea name="descripcion" class="form-control" rows="2" placeholder="Nota descriptiva sobre el respaldo..."></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="document.getElementById('modalEvidencia').style.display='none';" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">cloud_upload</span>
+                    <span>Guardar y Validar Evidencia</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Sección de Calidad y Encuesta de Satisfacción -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span class="material-symbols-outlined" style="color: var(--color-warning);">stars</span>
+            <span>Evaluación de Calidad y Satisfacción ({{ total_encuestas }} Respuestas)</span>
+        </div>
+        <a href="{% url 'capacitaciones:encuesta' capacitacion.id %}" class="btn btn-secondary" style="font-size: 12px; padding: 6px 14px;">
+            <span class="material-symbols-outlined" style="font-size: 16px;">rate_review</span>
+            <span>+ Responder Encuesta</span>
+        </a>
+    </div>
+
+    {% if total_encuestas > 0 %}
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; margin-bottom: 20px;">
+        <!-- Score General -->
+        <div style="background: linear-gradient(135deg, #00236f, #0051d5); border-radius: var(--radius-md); padding: 24px; color: white; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div style="font-size: 44px; font-weight: 800; line-height: 1;">{{ promedio_global }}</div>
+            <div style="font-size: 18px; color: #fde047; margin: 4px 0;">★★★★★</div>
+            <p style="font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 600;">Índice de Satisfacción ({{ pct_satisfaccion }}%)</p>
+            <small style="color: rgba(255,255,255,0.7); font-size: 11px;">Basado en {{ total_encuestas }} evaluaciones</small>
+        </div>
+
+        <!-- Desglose por Criterios -->
+        <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
+                    <span>Claridad y Metodología del Facilitador</span>
+                    <strong>{{ avg_claridad }} / 5.0 ★</strong>
+                </div>
+                <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden;">
+                    <div style="width: {% widthratio avg_claridad 5 100 %}%; height: 100%; background: #059669; border-radius: 99px;"></div>
+                </div>
+            </div>
+
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
+                    <span>Dominio del Tema por el Facilitador</span>
+                    <strong>{{ avg_dominio }} / 5.0 ★</strong>
+                </div>
+                <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden;">
+                    <div style="width: {% widthratio avg_dominio 5 100 %}%; height: 100%; background: #0284c7; border-radius: 99px;"></div>
+                </div>
+            </div>
+
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
+                    <span>Aplicabilidad y Utilidad Práctica</span>
+                    <strong>{{ avg_utilidad }} / 5.0 ★</strong>
+                </div>
+                <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden;">
+                    <div style="width: {% widthratio avg_utilidad 5 100 %}%; height: 100%; background: #d97706; border-radius: 99px;"></div>
+                </div>
+            </div>
+
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
+                    <span>Calidad de Materiales y Entorno</span>
+                    <strong>{{ avg_materiales }} / 5.0 ★</strong>
+                </div>
+                <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden;">
+                    <div style="width: {% widthratio avg_materiales 5 100 %}%; height: 100%; background: #7c3aed; border-radius: 99px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comentarios de Retroalimentación -->
+    <div style="margin-top: 14px;">
+        <h4 style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px;">Comentarios de los Participantes:</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            {% for enc in encuestas %}
+            {% if enc.aspectos_positivos or enc.aspectos_mejora %}
+            <div style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 12px; font-size: 12px;">
+                {% if enc.aspectos_positivos %}
+                <p style="color: #065f46; margin-bottom: 6px;">
+                    <strong>✓ Aspectos Positivos:</strong> {{ enc.aspectos_positivos }}
+                </p>
+                {% endif %}
+                {% if enc.aspectos_mejora %}
+                <p style="color: #92400e;">
+                    <strong>💡 Oportunidad de Mejora:</strong> {{ enc.aspectos_mejora }}
+                </p>
+                {% endif %}
+                <small style="color: var(--text-muted); font-size: 10px; display: block; margin-top: 6px;">
+                    Puntaje: {{ enc.puntaje_general }}/5.0 • {{ enc.created_at|date:"d/m/Y H:i" }}
+                </small>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 24px; color: var(--text-muted);">
+        <p>Aún no se han registrado encuestas de satisfacción para esta capacitación.</p>
+        <a href="{% url 'capacitaciones:encuesta' capacitacion.id %}" class="btn btn-primary" style="margin-top: 10px;">
+            <span class="material-symbols-outlined">rate_review</span>
+            <span>Completar Primera Evaluación</span>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal de Confirmación de Eliminación de Capacitación -->
+<div id="modalEliminarCapacitacionDetalle" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 460px; padding: 24px; box-shadow: var(--shadow-lg);">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <div style="width: 42px; height: 42px; border-radius: 50%; background: #fee2e2; color: #b91c1c; display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="font-size: 24px;">warning</span>
+            </div>
+            <div>
+                <h3 style="color: var(--color-danger); font-size: 18px; font-weight: 700; margin: 0;">Eliminar Capacitación</h3>
+                <span style="font-size: 12px; color: var(--text-muted);">Acción administrativa irreversible</span>
+            </div>
+        </div>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px;">
+            ¿Estás seguro de que deseas eliminar permanentemente la capacitación:<br>
+            <strong style="color: var(--text-primary);">{{ capacitacion.codigo }} — {{ capacitacion.nombre }}</strong>?
+        </p>
+        <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 12px; margin-bottom: 20px; font-size: 12px; color: #92400e;">
+            ⚠️ Se removerán los {{ participaciones.count }} participantes asignados y {{ evidencias.count }} evidencias vinculadas a este registro.
+        </div>
+        <form method="POST" action="{% url 'capacitaciones:eliminar' capacitacion.id %}">
+            {% csrf_token %}
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="document.getElementById('modalEliminarCapacitacionDetalle').style.display='none'" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="background: var(--color-danger); border-color: var(--color-danger);">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">delete_forever</span>
+                    <span>Sí, Eliminar Capacitación</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

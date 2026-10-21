@@ -1,0 +1,258 @@
+{% extends 'base.html' %}
+
+{% block title %}Calendario de Capacitaciones — SIGECAP{% endblock %}
+{% block page_title %}Calendario Institucional de Capacitaciones{% endblock %}
+{% block page_subtitle %}Planificación temporal de formaciones docentes y administrativas con vista mensual, semanal y por facultad{% endblock %}
+
+{% block extra_head %}
+<!-- FullCalendar 6 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/es.global.min.js"></script>
+<style>
+  .fc-event {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .fc-event:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  .fc-toolbar-title {
+    font-size: 20px !important;
+    font-weight: 800;
+    color: var(--color-primary);
+    letter-spacing: -0.5px;
+  }
+  .fc-button-primary {
+    background-color: var(--color-secondary) !important;
+    border-color: var(--color-secondary) !important;
+    border-radius: var(--radius-md) !important;
+    font-weight: 600 !important;
+    text-transform: capitalize;
+    padding: 8px 14px !important;
+  }
+  .fc-button-primary:hover {
+    background-color: #003db3 !important;
+  }
+  .fc-daygrid-day-number {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 13px;
+    padding: 6px 8px !important;
+  }
+  .fc-col-header-cell {
+    background: #f8fafc;
+    padding: 8px 0;
+    font-weight: 700;
+    color: #475569;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+</style>
+{% endblock %}
+
+{% block header_buttons %}
+<a href="{% url 'capacitaciones:lista' %}" class="btn btn-outline">
+    <span class="material-symbols-outlined">view_list</span>
+    <span>Vista Lista</span>
+</a>
+<a href="{% url 'capacitaciones:crear' %}" class="btn btn-primary">
+    <span class="material-symbols-outlined">add</span>
+    <span>Nueva Capacitación</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Barra de Filtros del Calendario -->
+<div class="card" style="padding: 16px 24px; margin-bottom: 20px;">
+    <form method="GET" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 260px;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 4px;">FILTRAR POR FACULTAD / UNIDAD:</label>
+            <select name="facultad" class="form-control" onchange="this.form.submit()">
+                <option value="">-- Todas las Facultades --</option>
+                {% for f in facultades %}
+                <option value="{{ f.id }}" {% if facultad_filtro == f.id|stringformat:"s" %}selected{% endif %}>
+                    {{ f.codigo }} — {{ f.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="width: 220px;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 4px;">ÁREA DE FORMACIÓN:</label>
+            <select name="area" class="form-control" onchange="this.form.submit()">
+                <option value="">-- Todas las Áreas --</option>
+                {% for a in areas %}
+                <option value="{{ a.id }}" {% if area_filtro == a.id|stringformat:"s" %}selected{% endif %}>
+                    {{ a.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="width: 180px;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 4px;">ESTADO:</label>
+            <select name="estado" class="form-control" onchange="this.form.submit()">
+                <option value="">-- Todos los Estados --</option>
+                <option value="En Curso" {% if estado_filtro == 'En Curso' %}selected{% endif %}>En Curso</option>
+                <option value="Planificada" {% if estado_filtro == 'Planificada' %}selected{% endif %}>Planificada</option>
+                <option value="Finalizada" {% if estado_filtro == 'Finalizada' %}selected{% endif %}>Finalizada</option>
+            </select>
+        </div>
+
+        <div style="align-self: flex-end;">
+            {% if facultad_filtro or area_filtro or estado_filtro %}
+            <a href="{% url 'capacitaciones:calendario' %}" class="btn btn-outline" style="padding: 10px 14px;" title="Restablecer filtros">
+                <span class="material-symbols-outlined" style="font-size: 18px;">restart_alt</span>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Leyenda de Estados en Calendario -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 12px; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; gap: 16px; align-items: center;">
+        <span style="font-weight: 700; color: var(--text-secondary);">Código de Color:</span>
+        <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 12px; height: 12px; background: #0051d5; border-radius: 3px; display: inline-block;"></span> 
+            <strong>En Curso</strong>
+        </span>
+        <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 12px; height: 12px; background: #1e3a8a; border-radius: 3px; display: inline-block;"></span> 
+            <strong>Planificada</strong>
+        </span>
+        <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 12px; height: 12px; background: #059669; border-radius: 3px; display: inline-block;"></span> 
+            <strong>Finalizada</strong>
+        </span>
+    </div>
+    <div style="color: var(--text-secondary); font-weight: 600;">
+        <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: middle; color: var(--color-secondary);">event</span>
+        Mostrando {{ total_eventos }} eventos en el calendario
+    </div>
+</div>
+
+<!-- Tarjeta del Calendario -->
+<div class="card" style="padding: 24px;">
+    <div id="calendar" style="min-height: 700px;"></div>
+</div>
+
+<!-- MODAL INTERACTIVO DE DETALLE RÁPIDO DE EVENTO -->
+<div id="modalEvento" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 15, 50, 0.6); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+    <div style="background: white; border-radius: 16px; max-width: 520px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.3); overflow: hidden; animation: slideDown 0.2s ease;">
+        <div style="background: #00236f; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined">event_available</span>
+                <span style="font-weight: 700; font-size: 14px;" id="modalEventCodigo"></span>
+            </div>
+            <button onclick="cerrarModalEvento()" style="background: transparent; border: none; color: white; cursor: pointer;">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <div style="padding: 24px;">
+            <h3 id="modalEventTitulo" style="color: #00236f; font-size: 18px; font-weight: 800; margin-bottom: 16px; line-height: 1.3;"></h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; font-size: 13px;">
+                <div style="background: #f8fafc; padding: 10px 14px; border-radius: 8px;">
+                    <span style="color: #64748b; font-size: 11px; display: block;">Área de Formación:</span>
+                    <strong id="modalEventArea" style="color: #0f172a;"></strong>
+                </div>
+                <div style="background: #f8fafc; padding: 10px 14px; border-radius: 8px;">
+                    <span style="color: #64748b; font-size: 11px; display: block;">Modalidad:</span>
+                    <strong id="modalEventModalidad" style="color: #0f172a;"></strong>
+                </div>
+                <div style="background: #f8fafc; padding: 10px 14px; border-radius: 8px;">
+                    <span style="color: #64748b; font-size: 11px; display: block;">Duración / Horas:</span>
+                    <strong id="modalEventHoras" style="color: #0f172a;"></strong> Horas
+                </div>
+                <div style="background: #f8fafc; padding: 10px 14px; border-radius: 8px;">
+                    <span style="color: #64748b; font-size: 11px; display: block;">Participantes:</span>
+                    <strong id="modalEventInscritos" style="color: #0051d5;"></strong> Inscritos
+                </div>
+            </div>
+
+            <div style="background: #f1f5f9; padding: 10px 14px; border-radius: 8px; font-size: 12px; color: #334155; margin-bottom: 24px;">
+                <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: middle; color: #0051d5;">location_on</span>
+                <strong>Lugar:</strong> <span id="modalEventLugar"></span>
+            </div>
+
+            <!-- Acciones Rápidas del Evento -->
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                <a id="modalBtnQr" href="#" target="_blank" class="btn btn-outline" style="font-size: 12px; padding: 6px 12px;">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">qr_code_2</span>
+                    <span>Póster QR</span>
+                </a>
+                <a id="modalBtnDuplicar" href="#" class="btn btn-outline" style="font-size: 12px; padding: 6px 12px;">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
+                    <span>Duplicar</span>
+                </a>
+                <a id="modalBtnDetalle" href="#" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px;">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">visibility</span>
+                    <span>Ver Ficha Completa</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var modalEvento = document.getElementById('modalEvento');
+
+function cerrarModalEvento() {
+    modalEvento.style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    var eventos = {{ eventos_json|safe }};
+
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'es',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,listMonth'
+        },
+        buttonText: {
+            today: 'Hoy',
+            month: 'Mes',
+            week: 'Semana',
+            list: 'Agenda / Lista'
+        },
+        events: eventos,
+        eventClick: function(info) {
+            info.jsEvent.preventDefault();
+            var props = info.event.extendedProps;
+            var capId = info.event.id;
+
+            document.getElementById('modalEventCodigo').innerText = info.event.title.split(':')[0];
+            document.getElementById('modalEventTitulo').innerText = info.event.title.includes(':') ? info.event.title.substring(info.event.title.indexOf(':') + 1).trim() : info.event.title;
+            document.getElementById('modalEventArea').innerText = props.area;
+            document.getElementById('modalEventModalidad').innerText = props.modalidad;
+            document.getElementById('modalEventHoras').innerText = props.horas;
+            document.getElementById('modalEventInscritos').innerText = props.inscritos;
+            document.getElementById('modalEventLugar').innerText = props.lugar;
+
+            document.getElementById('modalBtnDetalle').href = `/capacitaciones/${capId}/`;
+            document.getElementById('modalBtnDuplicar').href = `/capacitaciones/${capId}/duplicar/`;
+            document.getElementById('modalBtnQr').href = `/capacitaciones/${capId}/qr-asistencia/`;
+
+            modalEvento.style.display = 'flex';
+        }
+    });
+
+    calendar.render();
+});
+</script>
+{% endblock %}

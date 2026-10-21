@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block title %}Ficha de Participante — {{ persona.nombre_completo }}{% endblock %}
+{% block page_title %}Ficha Individual de Trayectoria Formativa{% endblock %}
+{% block page_subtitle %}Histórico acumulado de capacitaciones y desarrollo profesional continuo{% endblock %}
+
+{% block content %}
+<!-- Cabecera de Perfil del Colaborador -->
+<div class="card" style="margin-bottom: 24px;">
+    <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+        <div style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #00236f, #0051d5); color: white; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; box-shadow: 0 4px 12px rgba(0, 35, 111, 0.3);">
+            {{ persona.nombres|slice:":1" }}{{ persona.apellidos|slice:":1" }}
+        </div>
+
+        <div style="flex: 1; min-width: 260px;">
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 4px;">
+                <h2 style="font-size: 22px; color: var(--color-primary); font-weight: 800;">
+                    {{ persona.nombre_completo }}
+                </h2>
+                <span class="badge {% if persona.tipo_personal == 'Docente' %}badge-docente{% else %}badge-admin{% endif %}">
+                    {{ persona.tipo_personal }}
+                </span>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px;">
+                <strong>{{ persona.cargo_actual|default:"Colaborador" }}</strong> • {{ persona.facultad.nombre|default:"Unidad Central" }}
+                {% if persona.departamento_unidad %} • Depto. {{ persona.departamento_unidad }}{% endif %}
+            </p>
+            <p style="color: var(--text-muted); font-size: 12px; margin-top: 4px;">
+                Código de Empleado: <strong>{{ persona.codigo_empleado }}</strong> | DNI: <strong>{{ persona.documento_identidad|default:"N/A" }}</strong> | Email: <strong>{{ persona.email_institucional|default:"N/A" }}</strong>
+            </p>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+            <a href="{% url 'personas:editar' persona.id %}" class="btn btn-secondary">
+                <span class="material-symbols-outlined" style="font-size: 16px;">edit</span>
+                <span>Editar Datos</span>
+            </a>
+            <a href="{% url 'personas:lista' %}" class="btn btn-outline">
+                <span class="material-symbols-outlined" style="font-size: 16px;">arrow_back</span>
+                <span>Volver al Padrón</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Mini KPIs de Rendimiento Formativo -->
+    <div class="kpi-grid" style="margin-top: 24px; margin-bottom: 0;">
+        <div class="kpi-card" style="padding: 14px 18px;">
+            <div class="kpi-icon-box kpi-icon-green" style="width: 40px; height: 40px;">
+                <span class="material-symbols-outlined" style="font-size: 20px;">timer</span>
+            </div>
+            <div class="kpi-info">
+                <h4>Horas Acreditadas</h4>
+                <div class="kpi-value" style="font-size: 20px; color: var(--color-success);">{{ total_horas }} hrs</div>
+            </div>
+        </div>
+
+        <div class="kpi-card" style="padding: 14px 18px;">
+            <div class="kpi-icon-box kpi-icon-blue" style="width: 40px; height: 40px;">
+                <span class="material-symbols-outlined" style="font-size: 20px;">verified</span>
+            </div>
+            <div class="kpi-info">
+                <h4>Cursos Aprobados</h4>
+                <div class="kpi-value" style="font-size: 20px;">{{ total_aprobados }}</div>
+            </div>
+        </div>
+
+        <div class="kpi-card" style="padding: 14px 18px;">
+            <div class="kpi-icon-box kpi-icon-amber" style="width: 40px; height: 40px;">
+                <span class="material-symbols-outlined" style="font-size: 20px;">pending</span>
+            </div>
+            <div class="kpi-info">
+                <h4>En Curso / Pendiente</h4>
+                <div class="kpi-value" style="font-size: 20px;">{{ total_en_curso }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla del Historial Acumulativo -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span class="material-symbols-outlined" style="color: var(--color-secondary);">history_edu</span>
+            <span>Historial Completo de Capacitaciones Cursadas ({{ participaciones.count }})</span>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Código</th>
+                    <th>Nombre de la Capacitación</th>
+                    <th>Área / Eje</th>
+                    <th>Modalidad</th>
+                    <th>Horas</th>
+                    <th>Calificación</th>
+                    <th>Estado</th>
+                    <th>Certificado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for part in participaciones %}
+                <tr>
+                    <td>{{ part.capacitacion.fecha_inicio|date:"d/m/Y" }}</td>
+                    <td><strong>{{ part.capacitacion.codigo }}</strong></td>
+                    <td>
+                        <a href="{% url 'capacitaciones:detalle' part.capacitacion.id %}" style="font-weight: 600; color: var(--color-primary); text-decoration: none;">
+                            {{ part.capacitacion.nombre }}
+                        </a>
+                    </td>
+                    <td>
+                        <span style="font-size: 11px; background: #e0e7ff; color: #1e3a8a; padding: 3px 6px; border-radius: 4px;">
+                            {{ part.capacitacion.area_formacion.nombre }}
+                        </span>
+                    </td>
+                    <td>{{ part.capacitacion.tipo_modalidad.tipo }}</td>
+                    <td><strong>{{ part.horas_acreditadas|default:part.capacitacion.horas_duracion }} hrs</strong></td>
+                    <td>
+                        {% if part.calificacion %}
+                            <strong>{{ part.calificacion }} / 100</strong>
+                        {% else %}
+                            <span style="color: var(--text-muted);">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge 
+                            {% if part.estado_asistencia == 'Aprobó' %}badge-finalizada
+                            {% elif part.estado_asistencia == 'Inscrito' %}badge-planificada
+                            {% elif part.estado_asistencia == 'Asistió' %}badge-en-curso
+                            {% else %}badge-cancelada{% endif %}">
+                            {{ part.estado_asistencia }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if part.certificado_emitido or part.estado_asistencia == 'Aprobó' %}
+                            <span class="material-symbols-outlined" style="color: var(--color-success);" title="Certificado Emitido">workspace_premium</span>
+                        {% else %}
+                            <span style="color: var(--text-muted); font-size: 12px;">En trámite</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                        Esta persona aún no tiene capacitaciones registradas en su historial.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
