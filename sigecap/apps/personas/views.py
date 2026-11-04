@@ -3,6 +3,7 @@ import io
 from datetime import datetime
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum, Count, Avg
 from django.http import HttpResponse
 from django.utils import timezone
@@ -14,6 +15,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
 from reportlab.lib.units import inch
 
+from .forms import PersonaForm
 from .models import Persona, CompetenciaMatriz, MatriculaMatrizDocente
 from apps.catalogos.models import Facultad
 from apps.capacitaciones.models import Capacitacion, Participacion, EncuestaSatisfaccion
@@ -314,57 +316,28 @@ def crear_persona(request):
         messages.error(request, "Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).")
         return redirect('personas:lista')
 
+    form = PersonaForm()
     if request.method == 'POST':
-        codigo_empleado = request.POST.get('codigo_empleado')
-        documento_identidad = request.POST.get('documento_identidad')
-        nombres = request.POST.get('nombres')
-        apellidos = request.POST.get('apellidos')
-        tipo_personal = request.POST.get('tipo_personal', 'Docente')
-        tipo_contrato = request.POST.get('tipo_contrato', 'Tiempo Completo')
-        grado_academico = request.POST.get('grado_academico', 'Licenciatura / Ingeniería')
-        sexo = request.POST.get('sexo', 'M')
-        meta_horas = request.POST.get('meta_horas_anuales') or 40
-        facultad_id = request.POST.get('facultad')
-        departamento_unidad = request.POST.get('departamento_unidad')
-        cargo_actual = request.POST.get('cargo_actual')
-        email_institucional = request.POST.get('email_institucional')
-        telefono = request.POST.get('telefono')
-
-        if not codigo_empleado:
+        data = request.POST.copy()
+        if not data.get('codigo_empleado'):
             count = Persona.objects.count() + 1
-            codigo_empleado = f"EMP-{count:04d}"
-
-        try:
-            persona = Persona.objects.create(
-                codigo_empleado=codigo_empleado,
-                documento_identidad=documento_identidad if documento_identidad else None,
-                nombres=nombres,
-                apellidos=apellidos,
-                tipo_personal=tipo_personal,
-                tipo_contrato=tipo_contrato,
-                grado_academico=grado_academico,
-                sexo=sexo,
-                meta_horas_anuales=int(meta_horas),
-                facultad_id=facultad_id if facultad_id else None,
-                departamento_unidad=departamento_unidad,
-                cargo_actual=cargo_actual,
-                email_institucional=email_institucional if email_institucional else None,
-                telefono=telefono,
-            )
-
-            if tipo_personal in ['Docente', 'Ambos']:
-                competencias = CompetenciaMatriz.objects.filter(activo=True)
-                for comp in competencias:
-                    MatriculaMatrizDocente.objects.get_or_create(
-                        persona=persona,
-                        competencia=comp,
-                        defaults={'estado': 'Pendiente'}
-                    )
-
-            messages.success(request, f"Docente/Colaborador '{persona.nombre_completo}' registrado exitosamente.")
-            return redirect('personas:ficha', pk=persona.id)
-        except Exception as e:
-            messages.error(request, f"Error al registrar: {str(e)}")
+            data['codigo_empleado'] = f"EMP-{count:04d}"
+        form = PersonaForm(data)
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    persona = form.save()
+                    if persona.tipo_personal in ['Docente', 'Ambos']:
+                        for comp in CompetenciaMatriz.objects.filter(activo=True):
+                            MatriculaMatrizDocente.objects.get_or_create(
+                                persona=persona, competencia=comp,
+                                defaults={'estado': 'Pendiente'},
+                            )
+            except IntegrityError:
+                form.add_error(None, 'No se pudo guardar: existe un conflicto con otro registro. Revise el código, documento y correo e intente nuevamente.')
+            else:
+                messages.success(request, f"Docente/Colaborador '{persona.nombre_completo}' registrado exitosamente.")
+                return redirect('personas:ficha', pk=persona.id)
 
     facultades = Facultad.objects.filter(activo=True)
     tipos_personal = Persona.TIPO_PERSONAL
@@ -373,7 +346,11 @@ def crear_persona(request):
     sexos = Persona.SEXO
     next_code = f"EMP-{Persona.objects.count() + 1:04d}"
 
+    form.initial['codigo_empleado'] = next_code
+    form.initial['grado_academico'] = 'Maestría'
+
     context = {
+        'form': form,
         'facultades': facultades,
         'tipos_personal': tipos_personal,
         'tipos_contrato': tipos_contrato,
@@ -395,32 +372,18 @@ def editar_persona(request, pk):
         messages.error(request, "Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).")
         return redirect('personas:ficha', pk=pk)
 
+    form = PersonaForm(instance=persona)
     if request.method == 'POST':
-        persona.codigo_empleado = request.POST.get('codigo_empleado', persona.codigo_empleado)
-        persona.documento_identidad = request.POST.get('documento_identidad') or None
-        persona.nombres = request.POST.get('nombres', persona.nombres)
-        persona.apellidos = request.POST.get('apellidos', persona.apellidos)
-        persona.tipo_personal = request.POST.get('tipo_personal', persona.tipo_personal)
-        persona.tipo_contrato = request.POST.get('tipo_contrato', persona.tipo_contrato)
-        persona.grado_academico = request.POST.get('grado_academico', persona.grado_academico)
-        persona.sexo = request.POST.get('sexo', persona.sexo)
-        if 'meta_horas_anuales' in request.POST:
-            persona.meta_horas_anuales = int(request.POST.get('meta_horas_anuales') or 40)
-        
-        facultad_id = request.POST.get('facultad')
-        persona.facultad_id = facultad_id if facultad_id else None
-        
-        persona.departamento_unidad = request.POST.get('departamento_unidad')
-        persona.cargo_actual = request.POST.get('cargo_actual')
-        persona.email_institucional = request.POST.get('email_institucional') or None
-        persona.telefono = request.POST.get('telefono')
-
-        try:
-            persona.save()
-            messages.success(request, f"Datos de '{persona.nombre_completo}' actualizados exitosamente.")
-            return redirect('personas:ficha', pk=persona.id)
-        except Exception as e:
-            messages.error(request, f"Error al actualizar: {str(e)}")
+        form = PersonaForm(request.POST, instance=persona)
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    form.save()
+            except IntegrityError:
+                form.add_error(None, 'No se pudo guardar: existe un conflicto con otro registro. Revise el código, documento y correo e intente nuevamente.')
+            else:
+                messages.success(request, f"Datos de '{persona.nombre_completo}' actualizados exitosamente.")
+                return redirect('personas:ficha', pk=persona.id)
 
     facultades = Facultad.objects.filter(activo=True)
     tipos_personal = Persona.TIPO_PERSONAL
@@ -429,6 +392,7 @@ def editar_persona(request, pk):
     sexos = Persona.SEXO
 
     context = {
+        'form': form,
         'persona': persona,
         'facultades': facultades,
         'tipos_personal': tipos_personal,
