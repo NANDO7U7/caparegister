@@ -8,6 +8,7 @@ from django.db.models import Q, Sum, Count, Avg
 from django.http import HttpResponse
 from django.utils import timezone
 from django.conf import settings
+from django.core import signing
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -15,6 +16,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
 from reportlab.lib.units import inch
 
+from .registro import registrar_persona, siguiente_codigo
 from .forms import PersonaForm
 from .models import Persona, CompetenciaMatriz, MatriculaMatrizDocente
 from apps.catalogos.models import Facultad
@@ -317,25 +319,31 @@ def crear_persona(request):
         return redirect('personas:lista')
 
     form = PersonaForm()
+    automatico = True
     if request.method == 'POST':
         data = request.POST.copy()
-        if not data.get('codigo_empleado'):
-            count = Persona.objects.count() + 1
-            data['codigo_empleado'] = f"EMP-{count:04d}"
-        form = PersonaForm(data)
-        if form.is_valid():
+        codigo = data.get('codigo_empleado', '').strip()
+        modo = data.get('modo_codigo')
+        automatico = modo == 'automatico' or (modo is None and not codigo)
+        firma_invalida = False
+        if modo != 'manual' and data.get('codigo_sugerido'):
             try:
-                with transaction.atomic():
-                    persona = form.save()
-                    if persona.tipo_personal in ['Docente', 'Ambos']:
-                        for comp in CompetenciaMatriz.objects.filter(activo=True):
-                            MatriculaMatrizDocente.objects.get_or_create(
-                                persona=persona, competencia=comp,
-                                defaults={'estado': 'Pendiente'},
-                            )
-            except IntegrityError:
-                form.add_error(None, 'No se pudo guardar: existe un conflicto con otro registro. Revise el código, documento y correo e intente nuevamente.')
-            else:
+                sugerido = signing.loads(
+                    data['codigo_sugerido'], salt='personas.codigo',
+                    max_age=getattr(settings, 'PERSONAS_CODIGO_MAX_AGE', 1800),
+                )
+                automatico = codigo == sugerido or (automatico and not codigo)
+            except signing.BadSignature:
+                firma_invalida = modo == 'automatico'
+        elif modo == 'automatico':
+            firma_invalida = True
+        if firma_invalida:
+            form = PersonaForm(data)
+            form.is_valid()
+            form.add_error(None, 'La sugerencia de código venció o no es válida. Revise los datos y vuelva a guardar.')
+        else:
+            form, persona = registrar_persona(data, automatico)
+            if persona is not None:
                 messages.success(request, f"Docente/Colaborador '{persona.nombre_completo}' registrado exitosamente.")
                 return redirect('personas:ficha', pk=persona.id)
 
@@ -344,7 +352,7 @@ def crear_persona(request):
     tipos_contrato = Persona.TIPO_CONTRATO
     grados_academicos = Persona.GRADO_ACADEMICO
     sexos = Persona.SEXO
-    next_code = f"EMP-{Persona.objects.count() + 1:04d}"
+    next_code = siguiente_codigo() if request.method != 'POST' else form['codigo_empleado'].value()
 
     form.initial['codigo_empleado'] = next_code
     form.initial['grado_academico'] = 'Maestría'
@@ -357,6 +365,11 @@ def crear_persona(request):
         'grados_academicos': grados_academicos,
         'sexos': sexos,
         'next_code': next_code,
+        'modo_codigo': 'automatico' if automatico else 'manual',
+        'codigo_sugerido': signing.dumps(
+            form['codigo_empleado'].value() if automatico else next_code,
+            salt='personas.codigo',
+        ) if automatico else '',
         'accion': 'Registrar',
     }
     return render(request, 'personas/crear_editar.html', context)

@@ -1,14 +1,202 @@
 from unittest.mock import patch
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+import time
 
 from django.contrib.auth.models import User
-from django.db import IntegrityError
-from django.test import TestCase
+from django.core import signing
+from django.db import IntegrityError, close_old_connections
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 
 from apps.catalogos.models import Facultad
 
 from .forms import PersonaForm
 from .models import Persona
+from .registro import registrar_persona, siguiente_codigo
+
+
+class CodigosPersonaTests(TestCase):
+    def setUp(self):
+        self.client.force_login(User.objects.create_superuser(username='codigos_admin'))
+        self.data = {'nombres': 'Ana', 'apellidos': 'Perez', 'tipo_personal': 'Administrativo'}
+
+    def test_creacion_consecutiva(self):
+        for codigo in ('EMP-0001', 'EMP-0002', 'EMP-0003'):
+            response = self.client.post(reverse('personas:crear'), self.data)
+            self.assertEqual(response.status_code, 302)
+            self.assertTrue(Persona.objects.filter(codigo_empleado=codigo).exists())
+
+    def test_huecos_y_codigo_numerico_manual(self):
+        for codigo in ('EMP-0001', 'EMP-0003', 'EMP-0010', 'MANUAL-ABC'):
+            Persona.objects.create(codigo_empleado=codigo, nombres='Existente', apellidos='Perez')
+        self.assertEqual(siguiente_codigo(), 'EMP-0011')
+        self.client.post(reverse('personas:crear'), self.data)
+        self.assertEqual(Persona.objects.count(), 5)
+        self.assertTrue(Persona.objects.filter(codigo_empleado='EMP-0011').exists())
+
+    def test_codigo_manual_se_conserva_y_duplicado_se_rechaza(self):
+        data = {**self.data, 'codigo_empleado': 'EMP-0042'}
+        self.assertEqual(self.client.post(reverse('personas:crear'), data).status_code, 302)
+        response = self.client.post(reverse('personas:crear'), data)
+        self.assertIn('codigo_empleado', response.context['form'].errors)
+        self.assertEqual(Persona.objects.get().codigo_empleado, 'EMP-0042')
+
+    def test_eliminacion_no_provoca_colision(self):
+        for codigo in ('EMP-0001', 'EMP-0002', 'EMP-0003'):
+            Persona.objects.create(codigo_empleado=codigo, nombres='Ana', apellidos='Perez')
+        Persona.objects.get(codigo_empleado='EMP-0002').delete()
+        response = self.client.post(reverse('personas:crear'), self.data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Persona.objects.filter(codigo_empleado='EMP-0004').exists())
+
+    def test_reintenta_integrity_error_automatico(self):
+        guardar = PersonaForm.save
+        intentos = []
+
+        def guardar_con_conflicto(form):
+            intentos.append(True)
+            if len(intentos) == 1:
+                raise IntegrityError('conflicto simulado')
+            return guardar(form)
+
+        with patch.object(PersonaForm, 'save', guardar_con_conflicto):
+            response = self.client.post(reverse('personas:crear'), self.data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(intentos), 2)
+        self.assertEqual(Persona.objects.count(), 1)
+
+    def test_sugerencia_desactualizada(self):
+        response = self.client.get(reverse('personas:crear'))
+        codigo = response.context['form']['codigo_empleado'].value()
+        token = response.context['codigo_sugerido']
+        Persona.objects.create(codigo_empleado=codigo, nombres='Otra', apellidos='Persona')
+        response = self.client.post(reverse('personas:crear'), {
+            **self.data, 'codigo_empleado': codigo, 'codigo_sugerido': token,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(set(Persona.objects.values_list('codigo_empleado', flat=True)),
+                         {'EMP-0001', 'EMP-0002'})
+
+    def test_token_alterado_no_reemplaza_codigo_manual(self):
+        Persona.objects.create(codigo_empleado='EMP-0001', nombres='Otra', apellidos='Persona')
+        response = self.client.post(reverse('personas:crear'), {
+            **self.data, 'codigo_empleado': 'EMP-0001', 'codigo_sugerido': 'alterado',
+        })
+        self.assertIn('codigo_empleado', response.context['form'].errors)
+        self.assertEqual(Persona.objects.count(), 1)
+
+    def test_error_conserva_identificacion_automatica_para_reintento(self):
+        token = signing.dumps('EMP-0001', salt='personas.codigo')
+        response = self.client.post(reverse('personas:crear'), {
+            **self.data, 'nombres': '', 'codigo_empleado': 'EMP-0001',
+            'codigo_sugerido': token,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(signing.loads(response.context['codigo_sugerido'], salt='personas.codigo'),
+                         response.context['form']['codigo_empleado'].value())
+
+
+class FirmasCodigoTests(TestCase):
+    def setUp(self):
+        self.client.force_login(User.objects.create_superuser(username='firmas_admin'))
+        self.data = {'nombres': 'Ana', 'apellidos': 'Perez',
+                     'tipo_personal': 'Administrativo', 'codigo_empleado': 'EMP-0001'}
+
+    def test_manual_igual_a_sugerencia_no_emite_firma_tras_error(self):
+        response = self.client.post(reverse('personas:crear'), {
+            **self.data, 'nombres': '', 'modo_codigo': 'manual',
+            'codigo_sugerido': signing.dumps('EMP-0001', salt='personas.codigo'),
+        })
+        self.assertEqual(response.context['modo_codigo'], 'manual')
+        self.assertEqual(response.context['codigo_sugerido'], '')
+        self.assertNotContains(response, 'name="codigo_sugerido"')
+        Persona.objects.create(codigo_empleado='EMP-0001', nombres='Otra', apellidos='Persona')
+        response = self.client.post(reverse('personas:crear'), {
+            **self.data, 'modo_codigo': 'manual',
+        })
+        self.assertIn('codigo_empleado', response.context['form'].errors)
+        self.assertEqual(response.context['form']['codigo_empleado'].value(), 'EMP-0001')
+        self.assertEqual(Persona.objects.count(), 1)
+
+    def test_manual_sin_modo_conserva_codigo_tras_error(self):
+        response = self.client.post(reverse('personas:crear'), {**self.data, 'nombres': ''})
+        self.assertEqual(response.context['modo_codigo'], 'manual')
+        self.assertEqual(response.context['codigo_sugerido'], '')
+        response = self.client.post(reverse('personas:crear'), self.data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Persona.objects.get().codigo_empleado, 'EMP-0001')
+
+    def test_manual_ignora_firma_manipulada(self):
+        response = self.client.post(reverse('personas:crear'), {
+            **self.data, 'modo_codigo': 'manual', 'codigo_sugerido': 'alterada',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Persona.objects.get().codigo_empleado, 'EMP-0001')
+
+    def test_automatica_valida(self):
+        response = self.client.get(reverse('personas:crear'))
+        response = self.client.post(reverse('personas:crear'), {
+            **self.data, 'modo_codigo': 'automatico',
+            'codigo_sugerido': response.context['codigo_sugerido'],
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Persona.objects.get().codigo_empleado, 'EMP-0001')
+
+    @override_settings(PERSONAS_CODIGO_MAX_AGE=60)
+    def test_vencida_manipulada_y_ausente_conservan_datos(self):
+        with patch('django.core.signing.time.time', return_value=time.time() - 120):
+            vencida = signing.dumps('EMP-0001', salt='personas.codigo')
+        for token in (vencida, 'manipulada', ''):
+            with self.subTest(token=token):
+                response = self.client.post(reverse('personas:crear'), {
+                    **self.data, 'modo_codigo': 'automatico', 'codigo_sugerido': token,
+                })
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(response.context['form'].non_field_errors())
+                self.assertEqual(response.context['form']['nombres'].value(), 'Ana')
+                self.assertEqual(response.context['form']['codigo_empleado'].value(), 'EMP-0001')
+                self.assertEqual(Persona.objects.count(), 0)
+                renovada = response.context['codigo_sugerido']
+                self.assertEqual(signing.loads(renovada, salt='personas.codigo', max_age=60), 'EMP-0001')
+                response = self.client.post(reverse('personas:crear'), {
+                    **self.data, 'modo_codigo': 'automatico', 'codigo_sugerido': renovada,
+                })
+                self.assertEqual(response.status_code, 302)
+                Persona.objects.all().delete()
+
+
+class ConcurrenciaCodigosTests(TransactionTestCase):
+    def test_dos_creaciones_simultaneas(self):
+        barrera = Barrier(2)
+        generar = siguiente_codigo
+
+        def crear(indice):
+            close_old_connections()
+            try:
+                form, persona = registrar_persona({
+                    'nombres': str(indice), 'apellidos': 'Perez',
+                    'tipo_personal': 'Administrativo',
+                }, True)
+                return persona.codigo_empleado if persona else str(form.errors)
+            finally:
+                close_old_connections()
+
+        import threading
+        local = threading.local()
+
+        def candidato_con_barrera():
+            codigo = generar()
+            if not getattr(local, 'leyo', False):
+                local.leyo = True
+                barrera.wait(timeout=10)
+            return codigo
+
+        with patch('apps.personas.registro.siguiente_codigo', candidato_con_barrera):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                codigos = list(executor.map(crear, range(2)))
+        self.assertEqual(set(codigos), {'EMP-0001', 'EMP-0002'})
+        self.assertEqual(Persona.objects.count(), 2)
 
 
 class MetaHorasAnualesTests(TestCase):
