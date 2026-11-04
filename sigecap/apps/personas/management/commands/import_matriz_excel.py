@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from django.conf import settings
 from django.core.management.base import BaseCommand
 import openpyxl
 from apps.catalogos.models import Facultad
@@ -12,7 +13,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--file',
             type=str,
-            default=r'C:\Users\co601\OneDrive\Documentos\Practica\Plantilla de registro de formaciones.xlsx',
+            default=str(settings.BASE_DIR.parent / 'docs' / 'plantillas' / 'plantilla_formaciones_sintetica.xlsx'),
             help='Ruta del archivo Excel'
         )
 

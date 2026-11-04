@@ -43,3 +43,9 @@ sigecap/media/
 
 # Salida generada por collectstatic
 sigecap/staticfiles/
+
+# Originales institucionales respaldados fuera del repositorio
+/Listed directory Practica.docx
+/Plantilla de registro de formaciones.xlsx
+/Plantilla de registro de formaciones12.xlsx
+/plantilla_migracion_ejemplo.csv

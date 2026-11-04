@@ -7,6 +7,10 @@ Bienvenido a la documentación y archivos base de planificación del proyecto **
 
 ## 📑 Índice de Archivos del Proyecto
 
+Las [plantillas seguras](./docs/plantillas/README.md) contienen exclusivamente
+datos sintéticos. Los originales institucionales se retiraron del seguimiento
+tras confirmar su respaldo privado; permanecen en el historial de Git.
+
 | Archivo | Descripción |
 |---|---|
 | 📘 [`01_PLAN_DE_DESARROLLO.md`](./docs/01_PLAN_DE_DESARROLLO.md) | Cronograma detallado de 10 semanas (5 fases), metodología de trabajo, pruebas de seguridad estática (`bandit`), hitos, riesgos y entregables de continuidad. |
@@ -14,7 +18,8 @@ Bienvenido a la documentación y archivos base de planificación del proyecto **
 | 📋 [`03_ESPECIFICACION_REQUERIMIENTOS.md`](./docs/03_ESPECIFICACION_REQUERIMIENTOS.md) | Requerimientos funcionales y requerimientos no funcionales de seguridad (Magic Bytes, anti-inyección CSV, inmutabilidad de auditoría, control IDOR y RBAC). |
 | 🗄️ [`04_MODELO_DE_DATOS_POSTGRESQL.sql`](./docs/historico/04_MODELO_DE_DATOS_POSTGRESQL.sql) | Diseno historico de referencia; no sustituye las migraciones Django ni debe ejecutarse para inicializar la aplicacion. |
 | 📊 [`05_PLANTILLA_MIGRACION_EXCEL.md`](./docs/05_PLANTILLA_MIGRACION_EXCEL.md) | Guía técnica y diccionario de datos para la migración de archivos históricos de Excel con **normas de desinfección contra inyección de fórmulas CSV**. |
-| 📄 [`plantilla_migracion_ejemplo.csv`](./plantilla_migracion_ejemplo.csv) | Archivo de datos de ejemplo estructurado con registros reales y cursos académicos para pruebas de importación. |
+| [CSV sintético](./docs/plantillas/plantilla_migracion_sintetica.csv) | Cinco ejemplos ficticios; conserva las 21 columnas de migración. |
+| [Excel sintético](./docs/plantillas/plantilla_formaciones_sintetica.xlsx) | Cuatro hojas compatibles con la lectura del importador de personas. |
 | 🎨 [`06_GUIA_DISENO_VISUAL_STITCH.md`](./docs/06_GUIA_DISENO_VISUAL_STITCH.md) | **Sistema de diseño visual completo** extraído de los prototipos de Google Stitch: paleta de colores institucional (Material Design 3), tipografía Inter, componentes UI (sidebar, KPIs, tablas, botones, badges, filtros), tokens de espaciado y 9 pantallas documentadas. |
 | 📖 [`07_DOCUMENTACION_COMPLETA_DEL_SISTEMA.md`](./docs/07_DOCUMENTACION_COMPLETA_DEL_SISTEMA.md) | **Documentación Integral del Sistema SIGECAP**: resumen ejecutivo, arquitectura técnica, manual de módulos (Dashboard, Capacitaciones, Matriz Docente, Padrón, Costos), modelo ERD, comandos de importación Excel, guía de despliegue y directrices OWASP. |
 | 💻 [`sigecap/`](./sigecap/) | **Código fuente ejecutable del proyecto Django 5**: aplicaciones modulares (`core`, `capacitaciones`, `personas`, `catalogos`, `costos`), plantillas HTML, hoja de estilos CSS Material Design 3 y base de datos inicializada. |

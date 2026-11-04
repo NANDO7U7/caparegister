@@ -208,14 +208,20 @@ Administración ágil e independiente de las entidades maestras de la universida
 
 ## 5. Integración con el Libro de Excel
 
-El sistema incluye comandos automáticos para interoperar con la **[`Plantilla de registro de formaciones.xlsx`](../Plantilla%20de%20registro%20de%20formaciones.xlsx)**:
+Se utilizan [plantillas sintéticas del Excel y CSV](plantillas/README.md).
+Los originales institucionales se retiraron del seguimiento tras confirmar su
+respaldo privado. Esto no elimina la información del historial de Git.
+
+El importador usa por defecto el [Excel sintético](plantillas/plantilla_formaciones_sintetica.xlsx).
+La opción `--file` permite seleccionar otro libro compatible; solo debe usarse
+con autorización para importar sus datos. Ejecutar el comando crea registros.
 
 ### Comandos de Gestión por Consola:
 ```powershell
 # 1. Cargar catálogos base, personas y cursos de demostración:
 python manage.py seed_data
 
-# 2. Sincronizar e importar la Matriz Docente desde el archivo Excel institucional:
+# 2. Importar la matriz del Excel sintetico (solo sobre una base autorizada):
 python manage.py import_matriz_excel
 
 # 3. Validar integridad del sistema:
@@ -291,15 +297,13 @@ caparegister/
 |   |-- 05_PLANTILLA_MIGRACION_EXCEL.md
 |   |-- 06_GUIA_DISENO_VISUAL_STITCH.md
 |   |-- 07_DOCUMENTACION_COMPLETA_DEL_SISTEMA.md
+|   |-- plantillas/                     # Excel y CSV sinteticos
 |   |-- historico/04_MODELO_DE_DATOS_POSTGRESQL.sql
 |   `-- prototipos/sistema_gestion_capacitaciones.html
 |-- e2e/                       # Pruebas Playwright e instrucciones AGENTS.md
 |-- package.json
 |-- package-lock.json
 |-- playwright.config.ts
-|-- Plantilla de registro de formaciones.xlsx
-|-- Plantilla de registro de formaciones12.xlsx
-|-- plantilla_migracion_ejemplo.csv
 `-- sigecap/
     |-- manage.py
     |-- requirements.txt
