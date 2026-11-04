@@ -9,16 +9,16 @@ Bienvenido a la documentación y archivos base de planificación del proyecto **
 
 | Archivo | Descripción |
 |---|---|
-| 📘 [`01_PLAN_DE_DESARROLLO.md`](./01_PLAN_DE_DESARROLLO.md) | Cronograma detallado de 10 semanas (5 fases), metodología de trabajo, pruebas de seguridad estática (`bandit`), hitos, riesgos y entregables de continuidad. |
-| 🏗️ [`02_ARQUITECTURA_Y_STACK.md`](./02_ARQUITECTURA_Y_STACK.md) | Justificación técnica del stack (**Python + Django + PostgreSQL**), arquitectura MTV, **matriz de mitigación de vulnerabilidades OWASP Top 10**, seguridad de carga de archivos, sesiones y Docker seguro. |
-| 📋 [`03_ESPECIFICACION_REQUERIMIENTOS.md`](./03_ESPECIFICACION_REQUERIMIENTOS.md) | Requerimientos funcionales y requerimientos no funcionales de seguridad (Magic Bytes, anti-inyección CSV, inmutabilidad de auditoría, control IDOR y RBAC). |
-| 🗄️ [`04_MODELO_DE_DATOS_POSTGRESQL.sql`](./04_MODELO_DE_DATOS_POSTGRESQL.sql) | Script SQL DDL listo para ejecución en PostgreSQL con tablas relacionales, llaves foráneas, **trigger de inmutabilidad estricta (Append-Only) en auditoría**, campos de seguridad anti-fuerza bruta e índices de rendimiento. |
-| 📊 [`05_PLANTILLA_MIGRACION_EXCEL.md`](./05_PLANTILLA_MIGRACION_EXCEL.md) | Guía técnica y diccionario de datos para la migración de archivos históricos de Excel con **normas de desinfección contra inyección de fórmulas CSV**. |
+| 📘 [`01_PLAN_DE_DESARROLLO.md`](./docs/01_PLAN_DE_DESARROLLO.md) | Cronograma detallado de 10 semanas (5 fases), metodología de trabajo, pruebas de seguridad estática (`bandit`), hitos, riesgos y entregables de continuidad. |
+| 🏗️ [`02_ARQUITECTURA_Y_STACK.md`](./docs/arquitectura/02_ARQUITECTURA_Y_STACK.md) | Justificación técnica del stack (**Python + Django + PostgreSQL**), arquitectura MTV, **matriz de mitigación de vulnerabilidades OWASP Top 10**, seguridad de carga de archivos, sesiones y Docker seguro. |
+| 📋 [`03_ESPECIFICACION_REQUERIMIENTOS.md`](./docs/03_ESPECIFICACION_REQUERIMIENTOS.md) | Requerimientos funcionales y requerimientos no funcionales de seguridad (Magic Bytes, anti-inyección CSV, inmutabilidad de auditoría, control IDOR y RBAC). |
+| 🗄️ [`04_MODELO_DE_DATOS_POSTGRESQL.sql`](./docs/historico/04_MODELO_DE_DATOS_POSTGRESQL.sql) | Diseno historico de referencia; no sustituye las migraciones Django ni debe ejecutarse para inicializar la aplicacion. |
+| 📊 [`05_PLANTILLA_MIGRACION_EXCEL.md`](./docs/05_PLANTILLA_MIGRACION_EXCEL.md) | Guía técnica y diccionario de datos para la migración de archivos históricos de Excel con **normas de desinfección contra inyección de fórmulas CSV**. |
 | 📄 [`plantilla_migracion_ejemplo.csv`](./plantilla_migracion_ejemplo.csv) | Archivo de datos de ejemplo estructurado con registros reales y cursos académicos para pruebas de importación. |
-| 🎨 [`06_GUIA_DISENO_VISUAL_STITCH.md`](./06_GUIA_DISENO_VISUAL_STITCH.md) | **Sistema de diseño visual completo** extraído de los prototipos de Google Stitch: paleta de colores institucional (Material Design 3), tipografía Inter, componentes UI (sidebar, KPIs, tablas, botones, badges, filtros), tokens de espaciado y 9 pantallas documentadas. |
-| 📖 [`07_DOCUMENTACION_COMPLETA_DEL_SISTEMA.md`](./07_DOCUMENTACION_COMPLETA_DEL_SISTEMA.md) | **Documentación Integral del Sistema SIGECAP**: resumen ejecutivo, arquitectura técnica, manual de módulos (Dashboard, Capacitaciones, Matriz Docente, Padrón, Costos), modelo ERD, comandos de importación Excel, guía de despliegue y directrices OWASP. |
+| 🎨 [`06_GUIA_DISENO_VISUAL_STITCH.md`](./docs/06_GUIA_DISENO_VISUAL_STITCH.md) | **Sistema de diseño visual completo** extraído de los prototipos de Google Stitch: paleta de colores institucional (Material Design 3), tipografía Inter, componentes UI (sidebar, KPIs, tablas, botones, badges, filtros), tokens de espaciado y 9 pantallas documentadas. |
+| 📖 [`07_DOCUMENTACION_COMPLETA_DEL_SISTEMA.md`](./docs/07_DOCUMENTACION_COMPLETA_DEL_SISTEMA.md) | **Documentación Integral del Sistema SIGECAP**: resumen ejecutivo, arquitectura técnica, manual de módulos (Dashboard, Capacitaciones, Matriz Docente, Padrón, Costos), modelo ERD, comandos de importación Excel, guía de despliegue y directrices OWASP. |
 | 💻 [`sigecap/`](./sigecap/) | **Código fuente ejecutable del proyecto Django 5**: aplicaciones modulares (`core`, `capacitaciones`, `personas`, `catalogos`, `costos`), plantillas HTML, hoja de estilos CSS Material Design 3 y base de datos inicializada. |
-| 📁 [`stitch_sistema_de_gesti_n_de_capacitaciones/`](./stitch_sistema_de_gesti_n_de_capacitaciones/) | Carpeta con los **9 prototipos HTML originales de Google Stitch** y sus capturas de pantalla (`code.html` + `screen.png` por vista). |
+| [sistema_gestion_capacitaciones.html](./docs/prototipos/sistema_gestion_capacitaciones.html) | Demostracion autonoma conservada; Django utiliza sigecap/templates/capacitaciones/sistema_gestion.html. |
 
 ---
 

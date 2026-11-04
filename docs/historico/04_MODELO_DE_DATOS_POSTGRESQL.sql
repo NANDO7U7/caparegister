@@ -1,3 +1,6 @@
+-- DISEÑO HISTÓRICO: solo referencia de planificación.
+-- No sustituye las migraciones Django de sigecap/apps/*/migrations/.
+-- No ejecutar para inicializar o actualizar la base de datos de la aplicación.
 -- ============================================================================
 -- SISTEMA DE GESTIÓN DE CAPACITACIONES DOCENTES Y ADMINISTRATIVAS (SGCDA)
 -- Script de Creación del Modelo de Datos Relacional para PostgreSQL (v14+)

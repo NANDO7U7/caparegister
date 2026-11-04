@@ -208,7 +208,7 @@ Administración ágil e independiente de las entidades maestras de la universida
 
 ## 5. Integración con el Libro de Excel
 
-El sistema incluye comandos automáticos para interoperar con la **[`Plantilla de registro de formaciones.xlsx`](file:///C:/Users/co601/OneDrive/Documentos/Practica/Plantilla%20de%20registro%20de%20formaciones.xlsx)**:
+El sistema incluye comandos automáticos para interoperar con la **[`Plantilla de registro de formaciones.xlsx`](../Plantilla%20de%20registro%20de%20formaciones.xlsx)**:
 
 ### Comandos de Gestión por Consola:
 ```powershell
@@ -281,27 +281,36 @@ En cumplimiento de las directrices **OWASP Top 10** y normativas institucionales
 
 ## 8. Directorio de Archivos del Proyecto
 
+```text
+caparegister/
+|-- README.md
+|-- docs/
+|   |-- 01_PLAN_DE_DESARROLLO.md
+|   |-- arquitectura/02_ARQUITECTURA_Y_STACK.md
+|   |-- 03_ESPECIFICACION_REQUERIMIENTOS.md
+|   |-- 05_PLANTILLA_MIGRACION_EXCEL.md
+|   |-- 06_GUIA_DISENO_VISUAL_STITCH.md
+|   |-- 07_DOCUMENTACION_COMPLETA_DEL_SISTEMA.md
+|   |-- historico/04_MODELO_DE_DATOS_POSTGRESQL.sql
+|   `-- prototipos/sistema_gestion_capacitaciones.html
+|-- e2e/                       # Pruebas Playwright e instrucciones AGENTS.md
+|-- package.json
+|-- package-lock.json
+|-- playwright.config.ts
+|-- Plantilla de registro de formaciones.xlsx
+|-- Plantilla de registro de formaciones12.xlsx
+|-- plantilla_migracion_ejemplo.csv
+`-- sigecap/
+    |-- manage.py
+    |-- requirements.txt
+    |-- docker-compose.yml
+    |-- sigecap/               # Configuracion Django
+    |-- apps/                 # Incluye las migraciones vigentes
+    |-- static/               # Recursos fuente
+    `-- templates/            # Plantillas utilizadas por Django
 ```
-C:\Users\co601\OneDrive\Documentos\Practica\
-├── .agents/skills/apple-design/           # Skill de Diseño Apple (HIG, Craft UI/UX, Accesibilidad)
-│   ├── SKILL.md                           # Instrucciones de auditoría y principios Apple HIG
-│   ├── references/hig/                    # 123 guías HIG de Apple (Componentes, Layout, Tipografía)
-│   └── references/cross-platform.md       # Reglas para Web, Flutter, React Native, Electron
-├── 01_PLAN_DE_DESARROLLO.md               # Cronograma y fases de desarrollo
-├── 02_ARQUITECTURA_Y_STACK.md             # Especificación técnica y decisiones de arquitectura
-├── 03_ESPECIFICACION_REQUERIMIENTOS.md    # Requerimientos funcionales y no funcionales
-├── 04_MODELO_DE_DATOS_POSTGRESQL.sql      # Script DDL de base de datos con triggers
-├── 05_PLANTILLA_MIGRACION_EXCEL.md        # Diccionario de datos para importaciones Excel
-├── 06_GUIA_DISENO_VISUAL_STITCH.md        # Tokens y estilos visuales de Google Stitch
-├── 07_DOCUMENTACION_COMPLETA_DEL_SISTEMA.md # Este documento integral actualizado
-├── Plantilla de registro de formaciones.xlsx # Libro Excel de referencia institucional
-└── sigecap/                               # Directorio de la aplicación Django ejecutable
-    ├── .agents/skills/apple-design/       # Skill de diseño integrado al proyecto
-    ├── manage.py                          # Gestor de comandos de Django
-    ├── requirements.txt                   # Dependencias de Python
-    ├── docker-compose.yml                 # Orquestación de contenedores
-    ├── db.sqlite3                         # Base de datos local inicializada
-    ├── apps/                              # Módulos del sistema (core, capacitaciones, personas, costos, catalogos)
-    ├── static/                            # Estilos CSS (stitch-theme.css con Apple HIG) y recursos
-    └── templates/                         # Vistas HTML (dashboard, lista, matriz, ficha, calendario, qr, etc.)
-```
+
+El SQL de `historico/` es un diseno historico: no sustituye las migraciones
+Django ni debe ejecutarse para inicializar la base de la aplicacion.
+Las rutas de ejecucion se interpretan desde la raiz del repositorio,
+excepto cuando se indique expresamente `cd sigecap`.

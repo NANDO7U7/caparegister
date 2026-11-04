@@ -57,7 +57,7 @@ Se adoptará un marco ágil basado en **Sprints de 2 semanas**:
 * **Actividades:**
   1. Levantamiento técnico y revisión de la estructura de las hojas de Excel actuales de la universidad.
   2. Diseño formal del Diagrama Entidad-Relación (ERD) en PostgreSQL.
-  3. Creación del script DDL (`04_MODELO_DE_DATOS_POSTGRESQL.sql`) con llaves primarias, foráneas, restricciones, índices y **triggers de inmutabilidad en la bitácora de auditoría**.
+  3. Creación del script DDL (`historico/04_MODELO_DE_DATOS_POSTGRESQL.sql`) con llaves primarias, foráneas, restricciones, índices y **triggers de inmutabilidad en la bitácora de auditoría**.
   4. Diseño de la plantilla estandarizada de migración Excel con validaciones de datos y reglas contra inyección de fórmulas CSV.
   5. Configuración del entorno de desarrollo base (repositorio Git, Docker con PostgreSQL y entorno virtual de Python).
 * **Entregables de la fase:**
