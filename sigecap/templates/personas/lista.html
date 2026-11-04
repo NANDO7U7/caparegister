@@ -30,13 +30,13 @@
             </select>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="padding: 10px 18px;">
+        <button type="submit" class="btn btn-primary">
             <span class="material-symbols-outlined" style="font-size: 18px;">filter_alt</span>
             <span>Filtrar</span>
         </button>
 
         {% if query or tipo_filtro or facultad_filtro %}
-        <a href="{% url 'personas:lista' %}" class="btn btn-outline" style="padding: 10px 14px;">
+        <a href="{% url 'personas:lista' %}" class="btn btn-outline btn-icon" title="Limpiar filtros">
             <span class="material-symbols-outlined" style="font-size: 18px;">restart_alt</span>
         </a>
         {% endif %}
@@ -50,7 +50,7 @@
             <span class="material-symbols-outlined" style="color: var(--color-primary);">badge</span>
             <span>Personal Registrado ({{ personas.count }})</span>
         </div>
-        <a href="{% url 'personas:crear' %}" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px;">
+        <a href="{% url 'personas:crear' %}" class="btn btn-primary btn-sm">
             <span class="material-symbols-outlined" style="font-size: 16px;">person_add</span>
             <span>Nuevo Docente / Personal</span>
         </a>
@@ -96,7 +96,7 @@
                         </span>
                     </td>
                     <td>
-                        <a href="{% url 'personas:ficha' p.id %}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
+                        <a href="{% url 'personas:ficha' p.id %}" class="btn btn-secondary btn-sm">
                             <span class="material-symbols-outlined" style="font-size: 15px;">history_edu</span>
                             <span>Ver Historial</span>
                         </a>

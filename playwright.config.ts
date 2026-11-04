@@ -13,6 +13,7 @@ export default defineConfig({
   timeout: 30000,
   reporter: [
     ['list'],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
     ['json', { outputFile: 'test-results/playwright-results.json' }]
   ],
   use: {

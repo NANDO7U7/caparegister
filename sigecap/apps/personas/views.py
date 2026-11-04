@@ -404,7 +404,8 @@ def editar_persona(request, pk):
         persona.tipo_contrato = request.POST.get('tipo_contrato', persona.tipo_contrato)
         persona.grado_academico = request.POST.get('grado_academico', persona.grado_academico)
         persona.sexo = request.POST.get('sexo', persona.sexo)
-        persona.meta_horas_anuales = int(request.POST.get('meta_horas_anuales') or 40)
+        if 'meta_horas_anuales' in request.POST:
+            persona.meta_horas_anuales = int(request.POST.get('meta_horas_anuales') or 40)
         
         facultad_id = request.POST.get('facultad')
         persona.facultad_id = facultad_id if facultad_id else None

@@ -72,13 +72,13 @@
             </select>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="padding: 10px 16px;">
+        <button type="submit" class="btn btn-primary">
             <span class="material-symbols-outlined" style="font-size: 18px;">filter_alt</span>
             <span>Filtrar</span>
         </button>
 
         {% if query or estado_filtro or area_filtro or modalidad_filtro or facultad_filtro or solo_evidencias_pendientes %}
-        <a href="{% url 'capacitaciones:lista' %}" class="btn btn-outline" style="padding: 10px 14px;" title="Limpiar filtros">
+        <a href="{% url 'capacitaciones:lista' %}" class="btn btn-outline btn-icon" title="Limpiar filtros">
             <span class="material-symbols-outlined" style="font-size: 18px;">restart_alt</span>
         </a>
         {% endif %}
@@ -93,11 +93,11 @@
             <span>Registros Encontrados ({{ capacitaciones.count }})</span>
         </div>
         <div style="display: flex; gap: 8px;">
-            <a href="{% url 'capacitaciones:calendario' %}" class="btn btn-outline" style="font-size: 12px; padding: 6px 12px;">
+            <a href="{% url 'capacitaciones:calendario' %}" class="btn btn-outline btn-sm">
                 <span class="material-symbols-outlined" style="font-size: 16px;">calendar_month</span>
                 <span>Calendario</span>
             </a>
-            <a href="{% url 'capacitaciones:crear' %}" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px;">
+            <a href="{% url 'capacitaciones:crear' %}" class="btn btn-primary btn-sm">
                 <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
                 <span>Nueva Capacitación</span>
             </a>

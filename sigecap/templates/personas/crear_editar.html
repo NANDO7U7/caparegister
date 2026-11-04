@@ -14,8 +14,8 @@
                 <span class="material-symbols-outlined" style="color: var(--color-secondary);">person_add</span>
                 <span>Datos Personales e Institucionales</span>
             </div>
-            <a href="{% url 'personas:lista' %}" class="btn btn-outline" style="padding: 6px 14px; font-size: 12px;">
-                <span class="material-symbols-outlined" style="font-size: 16px;">arrow_back</span>
+            <a href="{% url 'personas:lista' %}" class="btn btn-outline btn-sm">
+                <span class="material-symbols-outlined">arrow_back</span>
                 <span>Volver al Padrón</span>
             </a>
         </div>
@@ -121,9 +121,9 @@
             </div>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border-subtle); padding-top: 20px;">
+        <div class="form-actions-bar">
             <a href="{% url 'personas:lista' %}" class="btn btn-outline">Cancelar</a>
-            <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">
+            <button type="submit" class="btn btn-primary">
                 <span class="material-symbols-outlined">save</span>
                 <span>Guardar Docente / Colaborador</span>
             </button>

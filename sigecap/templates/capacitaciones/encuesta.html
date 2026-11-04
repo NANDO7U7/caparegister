@@ -104,9 +104,9 @@
             </div>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border-subtle); padding-top: 20px;">
+        <div class="form-actions-bar">
             <a href="{% if docente %}/personas/portal/?docente={{ docente.id }}{% else %}{% url 'capacitaciones:detalle' capacitacion.id %}{% endif %}" class="btn btn-outline">Cancelar</a>
-            <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">
+            <button type="submit" class="btn btn-primary">
                 <span class="material-symbols-outlined">send</span>
                 <span>Enviar Evaluación</span>
             </button>

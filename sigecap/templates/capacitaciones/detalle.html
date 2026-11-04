@@ -42,7 +42,7 @@
                 <span class="material-symbols-outlined" style="font-size: 16px;">qr_code_2</span>
                 <span>Póster QR</span>
             </a>
-            <button type="button" onclick="document.getElementById('modalEliminarCapacitacionDetalle').style.display='flex';" class="btn btn-outline" style="color: var(--color-danger); border-color: rgba(220, 38, 38, 0.3);" title="Eliminar capacitación permanentemente sin ir a Django Admin">
+            <button type="button" onclick="document.getElementById('modalEliminarCapacitacionDetalle').style.display='flex';" class="btn btn-outline-danger" title="Eliminar capacitación permanentemente sin ir a Django Admin">
                 <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>
                 <span>Eliminar</span>
             </button>
@@ -142,7 +142,7 @@
                 <input type="number" name="calificacion" min="0" max="100" class="form-control" placeholder="Ej. 90">
             </div>
 
-            <button type="submit" class="btn btn-primary" style="padding: 10px 18px;">
+            <button type="submit" class="btn btn-primary">
                 <span class="material-symbols-outlined" style="font-size: 18px;">person_add</span>
                 <span>Asignar</span>
             </button>
@@ -207,9 +207,9 @@
                     <td style="text-align: right;">
                         <form method="POST" action="{% url 'capacitaciones:eliminar_participante' capacitacion.id part.id %}" style="margin: 0; display: inline;" onsubmit="return confirm('¿Retirar a {{ part.persona.nombre_completo|escapejs }} de esta capacitación?');">
                             {% csrf_token %}
-                            <button type="submit" title="Retirar participante" style="border: 1px solid rgba(220, 38, 38, 0.3); background: #fff5f5; color: #dc2626; border-radius: 4px; padding: 2px 6px; cursor: pointer;">
-                                <span class="material-symbols-outlined" style="font-size: 14px;">person_remove</span>
-                            </button>
+                            <button type="submit" class="action-btn-sm action-btn-danger" title="Retirar participante">
+                            <span class="material-symbols-outlined">person_remove</span>
+                        </button>
                         </form>
                     </td>
                 </tr>
@@ -233,7 +233,7 @@
             <span>Evidencias y Documentos de Respaldo ({{ evidencias.count }})</span>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
-            <button type="button" onclick="document.getElementById('modalEvidencia').style.display='flex';" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px;">
+            <button type="button" onclick="document.getElementById('modalEvidencia').style.display='flex';" class="btn btn-primary btn-sm">
                 <span class="material-symbols-outlined" style="font-size: 16px;">cloud_upload</span>
                 <span>+ Cargar Evidencia / Acta</span>
             </button>
