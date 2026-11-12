@@ -72,3 +72,10 @@ tras confirmar su respaldo privado; permanecen en el historial de Git.
 2. **Gestor de Capacitación:** Coordinación de eventos de sus áreas formativas, registro de asistencias y subida de evidencias.
 3. **Directivo / Consulta:** Visualización de dashboards de inversión, cobertura docente y reportes ejecutivos consolidados.
 4. **Docente / Administrativo:** Consulta de historial formativo acumulado y descarga de constancias y diplomas propios.
+
+## Configuracion actual y pruebas aisladas
+
+Consulta [docs/seguridad.md](docs/seguridad.md) para iniciar el perfil local,
+configurar produccion sin secretos versionados y ejecutar pruebas sobre bases
+en memoria. No uses credenciales de documentos historicos ni el comando retirado
+`seed_users`.

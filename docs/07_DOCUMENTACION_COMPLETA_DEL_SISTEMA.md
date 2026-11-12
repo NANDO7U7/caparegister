@@ -5,7 +5,7 @@
 > **Fecha:** Octubre 2026  
 > **Estado:** Implementado, Operativo y Funcional  
 > **Stack Tecnológico:** Python 3.11+ / Django 5.x / PostgreSQL 16 / Material Design 3 (Google Stitch)  
-> **Ubicación del Código:** `C:\Users\co601\OneDrive\Documentos\Practica\sigecap`
+> **Ubicación del Código:** `sigecap/`
 
 ---
 
@@ -240,7 +240,7 @@ python manage.py check
 ### 6.2 Pasos para Ejecutar en Entorno Local
 1. **Abrir terminal en la carpeta del proyecto:**
    ```powershell
-   cd C:\Users\co601\OneDrive\Documentos\Practica\sigecap
+   cd sigecap/
    ```
 
 2. **Instalar dependencias necesarias:**
@@ -250,12 +250,13 @@ python manage.py check
 
 3. **Ejecutar migraciones de base de datos:**
    ```powershell
-   python manage.py migrate
+   python manage.py migrate --settings=sigecap.local_settings
    ```
 
 4. **Iniciar el servidor de desarrollo:**
    ```powershell
-   python manage.py runserver 127.0.0.1:8000
+   $env:DEBUG = 'True'
+   python manage.py runserver 127.0.0.1:8080 --settings=sigecap.local_settings
    ```
 
 5. **Abrir el sistema en el navegador:**
@@ -263,14 +264,13 @@ python manage.py check
 
 ---
 
-### 6.3 Credenciales de Acceso
+### 6.3 Acceso y configuracion segura
 
-| Tipo de Acceso | URL | Usuario | Contraseña |
-|---|---|---|---|
-| **Portal Institucional** | `http://127.0.0.1:8000/` | Acceso Libre / Coordinador | — |
-| **Panel de Administración Web** | `http://127.0.0.1:8000/administracion/` | `admin` (Edición Total) | `AdminPassword2026!` |
-| **Portal Docente** | `http://127.0.0.1:8000/personas/portal/` | Docentes y Empleados | — |
-| **Django Admin (Fallback)** | `http://127.0.0.1:8000/admin/` | `admin` | `AdminPassword2026!` |
+El acceso requiere una cuenta autorizada. No existen credenciales predeterminadas.
+Consulta [seguridad.md](seguridad.md) para configurar variables de entorno,
+ejecutar el servidor local y conocer la politica de permisos. Las migraciones
+solo deben ejecutarse deliberadamente en una base nueva o autorizada, nunca como
+parte de una revision contra datos existentes.
 
 ---
 

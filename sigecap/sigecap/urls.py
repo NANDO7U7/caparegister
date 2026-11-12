@@ -5,8 +5,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from apps.core.auth_views import SigecapLoginView, SigecapLogoutView, admin_login
 
 urlpatterns = [
+    path('login/', SigecapLoginView.as_view(), name='login'),
+    path('logout/', SigecapLogoutView.as_view(), name='logout'),
+    path('admin/login/', admin_login),
+    path('admin/logout/', SigecapLogoutView.as_view()),
     path('admin/', admin.site.urls),
     path('', include('apps.core.urls')),
     path('catalogos/', include('apps.catalogos.urls')),

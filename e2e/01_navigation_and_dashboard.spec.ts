@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Flujo 1: Navegación Global y Dashboard Principal', () => {
   test('Debe cargar el Dashboard principal con KPIs y analíticas', async ({ page }) => {

@@ -1,0 +1,40 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Iniciar sesión | SIGECAP</title>
+    <link rel="stylesheet" href="{% static 'css/login.css' %}">
+</head>
+<body>
+    <main class="login-layout">
+        <section class="brand" aria-label="SIGECAP">
+            <span class="brand-mark" aria-hidden="true">S</span>
+            <p class="eyebrow">GESTIÓN INSTITUCIONAL</p>
+            <h1>SIGECAP</h1>
+            <p class="intro">Formación que impulsa<br>nuestro futuro.</p>
+            <p>Sistema de Gestión de Capacitaciones Docentes y Administrativas</p>
+        </section>
+        <section class="login-card" aria-labelledby="login-title">
+            <p class="eyebrow">BIENVENIDO A SIGECAP</p>
+            <h2 id="login-title">Iniciar sesión</h2>
+            <p class="muted">Ingresa con tu cuenta institucional para continuar.</p>
+            {% if form.errors %}
+            <div class="error" role="alert">No se pudo iniciar sesión. Verifica tu nombre de usuario y contraseña e inténtalo de nuevo.</div>
+            {% endif %}
+            <form method="post" action="{% url 'login' %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next }}">
+                <label for="id_username">Nombre de usuario</label>
+                <input id="id_username" name="username" type="text" autocomplete="username" maxlength="150" value="{{ form.username.value|default:'' }}" required autofocus>
+                <label for="id_password">Contraseña</label>
+                <input id="id_password" name="password" type="password" autocomplete="current-password" required>
+                <button type="submit">Iniciar sesión <span aria-hidden="true">→</span></button>
+            </form>
+            <p class="help">¿Necesitas acceso? Contacta al personal autorizado de tu institución.</p>
+            <footer>Acceso exclusivo para usuarios autorizados.</footer>
+        </section>
+    </main>
+</body>
+</html>

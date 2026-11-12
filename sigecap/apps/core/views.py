@@ -1,78 +1,89 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.contrib.auth import login
+from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import User
-from django.db.models import Count, Sum, Avg, ProtectedError
+from django.contrib.auth.password_validation import validate_password
+from django.db.models import Count, Sum, Avg, ProtectedError, Case, When, Value, IntegerField
+from django.db.models.functions import ExtractMonth
+from django.utils import timezone
 from django.http import JsonResponse
 from apps.capacitaciones.models import Capacitacion, Participacion, EncuestaSatisfaccion
 from apps.personas.models import Persona
 from apps.catalogos.models import Facultad, AreaFormacion, TipoModalidad, Proyecto, Proveedor
 from apps.costos.models import GastoCapacitacion
 from apps.core.models import AuditLog
+from django.core.exceptions import PermissionDenied
+from .permissions import (
+    CATALOG_MODELS, CATALOG_ACTIONS, can_view_catalogs, visible_catalog,
+    is_administrator, require_administrative_permission, administrative_permission_required,
+)
 
 def dashboard_view(request):
-    """
-    Vista del Dashboard Principal de SIGECAP (Inspirado en Prototipo Stitch).
-    Calcula en tiempo real los KPIs institucionales, métricas de satisfacción y datos para las gráficas.
-    """
-    # 5 KPIs Principales
-    total_capacitaciones = Capacitacion.objects.count()
-    total_participantes_inscritos = Participacion.objects.count()
-    total_aprobados = Participacion.objects.filter(estado_asistencia='Aprobó').count()
-    
-    total_docentes_capacitados = Persona.objects.filter(
-        participaciones__estado_asistencia='Aprobó', 
-        tipo_personal__in=['Docente', 'Ambos']
-    ).distinct().count()
+    """Historical indicators and current-calendar-year trends from stored records."""
+    formaciones = Capacitacion.objects.filter(estado__in=['En Curso', 'Finalizada'])
+    aprobaciones = Participacion.objects.filter(estado_asistencia='Aprobó')
+    encuestas = EncuestaSatisfaccion.objects.aggregate(
+        total=Count('pk'), claridad=Avg('claridad_facilitador'),
+        dominio=Avg('dominio_tema'), utilidad=Avg('utilidad_practica'),
+        materiales=Avg('materiales_recursos'),
+    )
+    promedio = (
+        sum(encuestas[key] for key in ('claridad', 'dominio', 'utilidad', 'materiales')) / 4
+        if encuestas['total'] else None
+    )
 
-    total_horas_impartidas = Capacitacion.objects.filter(
-        estado__in=['En Curso', 'Finalizada']
-    ).aggregate(total=Sum('horas_duracion'))['total'] or 0
-
-    presupuesto_ejecutado = GastoCapacitacion.objects.filter(
-        estado='Ejecutado'
-    ).aggregate(total=Sum('monto_ejecutado'))['total'] or 0
-
-    # Métricas de Satisfacción
-    encuestas = EncuestaSatisfaccion.objects.all()
-    total_encuestas = encuestas.count()
-    if total_encuestas > 0:
-        promedios = [e.puntaje_general for e in encuestas]
-        satisfaccion_promedio = round(sum(promedios) / len(promedios), 1)
-        pct_satisfaccion = int((satisfaccion_promedio / 5.0) * 100)
-    else:
-        satisfaccion_promedio = 4.8
-        pct_satisfaccion = 96
-
-    # Capacitaciones Recientes o En Curso
-    capacitaciones_recientes = Capacitacion.objects.select_related(
-        'area_formacion', 'tipo_modalidad'
-    ).all()[:6]
-
-    # Distribución por Áreas Formativas
-    areas_chart = AreaFormacion.objects.annotate(
-        num_capacitaciones=Count('capacitaciones')
-    ).values('nombre', 'num_capacitaciones')
-
-    area_labels = [a['nombre'] for a in areas_chart]
-    area_values = [a['num_capacitaciones'] for a in areas_chart]
-
+    # No joins to expenses/surveys: each event and participation is counted once.
+    anio = timezone.localdate().year
+    meses_formaciones = dict(
+        formaciones.filter(fecha_inicio__year=anio).order_by()
+        .annotate(mes=ExtractMonth('fecha_inicio')).values('mes')
+        .annotate(total=Count('pk')).values_list('mes', 'total')
+    )
+    meses_participaciones = dict(
+        Participacion.objects.filter(
+            capacitacion__estado__in=['En Curso', 'Finalizada'],
+            capacitacion__fecha_inicio__year=anio,
+            estado_asistencia__in=['Asistió', 'Aprobó'],
+        ).order_by().annotate(mes=ExtractMonth('capacitacion__fecha_inicio'))
+        .values('mes').annotate(total=Count('pk')).values_list('mes', 'total')
+    )
+    trend_formaciones = [meses_formaciones.get(mes, 0) for mes in range(1, 13)]
+    trend_participaciones = [meses_participaciones.get(mes, 0) for mes in range(1, 13)]
+    areas = list(
+        AreaFormacion.objects.annotate(num_capacitaciones=Count('capacitaciones'))
+        .filter(num_capacitaciones__gt=0).order_by('nombre', 'pk')
+        .values('nombre', 'num_capacitaciones')
+    )
     context = {
-        'total_capacitaciones': total_capacitaciones,
-        'total_participantes': total_participantes_inscritos,
-        'total_aprobados': total_aprobados,
-        'total_docentes': total_docentes_capacitados,
-        'total_horas': total_horas_impartidas,
-        'presupuesto_ejecutado': presupuesto_ejecutado,
-        'satisfaccion_promedio': satisfaccion_promedio,
-        'pct_satisfaccion': pct_satisfaccion,
-        'total_encuestas': total_encuestas,
-        'capacitaciones_recientes': capacitaciones_recientes,
-        'area_labels': area_labels,
-        'area_values': area_values,
+        'total_capacitaciones': Capacitacion.objects.count(),
+        'total_participantes': Participacion.objects.count(),
+        'total_aprobados': aprobaciones.count(),
+        'total_docentes': Persona.objects.filter(
+            participaciones__estado_asistencia='Aprobó',
+            tipo_personal__in=['Docente', 'Ambos'],
+        ).distinct().count(),
+        'total_horas': formaciones.aggregate(total=Sum('horas_duracion'))['total'] or 0,
+        'presupuesto_ejecutado': GastoCapacitacion.objects.filter(estado='Ejecutado')
+            .aggregate(total=Sum('monto_ejecutado'))['total'] or 0,
+        'satisfaccion_promedio': round(promedio, 1) if promedio is not None else None,
+        'pct_satisfaccion': round(promedio / 5 * 100, 1) if promedio is not None else None,
+        'total_encuestas': encuestas['total'],
+        'capacitaciones_recientes': Capacitacion.objects.select_related(
+            'area_formacion', 'tipo_modalidad', 'proveedor',
+        ).annotate(prioridad=Case(
+            When(estado='En Curso', then=Value(0)), default=Value(1),
+            output_field=IntegerField(),
+        )).order_by('prioridad', '-fecha_inicio', '-created_at', 'pk')[:6],
+        'area_labels': [area['nombre'] for area in areas],
+        'area_values': [area['num_capacitaciones'] for area in areas],
+        'trend_year': anio,
+        'trend_labels': ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                         'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+        'trend_formaciones': trend_formaciones,
+        'trend_participaciones': trend_participaciones,
+        'has_trend_data': any(trend_formaciones) or any(trend_participaciones),
     }
     return render(request, 'dashboard.html', context)
-
 
 def registrar_log(request, accion, tabla, registro_id, detalles=None):
     """Registra eventos en la bitácora de auditoría inmutable."""
@@ -99,22 +110,33 @@ def panel_administracion_view(request):
     Permite gestionar catálogos maestros, usuarios, roles, capacitaciones
     y bitácora de auditoría sin necesidad de acceder al panel externo de Django Admin.
     """
-    tab_activa = request.GET.get('tab', 'catalogos')
+    allowed_tabs = {
+        'catalogos': can_view_catalogs(request.user),
+        'usuarios': request.user.is_active and request.user.is_superuser,
+        'capacitaciones': is_administrator(request.user) and request.user.has_perm('capacitaciones.view_capacitacion'),
+        'auditoria': is_administrator(request.user) and request.user.has_perm('core.view_auditlog'),
+    }
+    tab_activa = request.GET.get('tab') or next((tab for tab, allowed in allowed_tabs.items() if allowed), None)
+    if not allowed_tabs.get(tab_activa):
+        raise PermissionDenied
     subtab = request.GET.get('subtab', 'facultades')
 
-    facultades = Facultad.objects.all().order_by('codigo')
-    areas = AreaFormacion.objects.all().order_by('codigo')
-    tipos_modalidad = TipoModalidad.objects.all().order_by('tipo', 'modalidad')
-    proveedores = Proveedor.objects.all().order_by('nombre')
-    proyectos = Proyecto.objects.all().order_by('codigo')
-    usuarios = User.objects.all().order_by('-is_superuser', 'username')
+    facultades = visible_catalog(request.user, Facultad).order_by('codigo')
+    areas = visible_catalog(request.user, AreaFormacion).order_by('codigo')
+    tipos_modalidad = visible_catalog(request.user, TipoModalidad).order_by('tipo', 'modalidad')
+    proveedores = visible_catalog(request.user, Proveedor).order_by('nombre')
+    proyectos = visible_catalog(request.user, Proyecto).order_by('codigo')
+    usuarios = (User.objects.all() if allowed_tabs['usuarios'] else User.objects.none()).order_by('-is_superuser', 'username')
     capacitaciones = Capacitacion.objects.select_related(
         'area_formacion', 'tipo_modalidad', 'proveedor'
-    ).annotate(total_inscritos=Count('participaciones')).order_by('-fecha_inicio')
-    auditorias = AuditLog.objects.select_related('usuario').all().order_by('-fecha_hora')[:100]
+    ).annotate(num_inscritos=Count('participaciones')).order_by('-fecha_inicio')
+    if not allowed_tabs['capacitaciones']:
+        capacitaciones = capacitaciones.none()
+    auditorias = (AuditLog.objects.all() if allowed_tabs['auditoria'] else AuditLog.objects.none()).select_related('usuario').order_by('-fecha_hora')[:100]
 
     context = {
         'tab_activa': tab_activa,
+        'allowed_tabs': allowed_tabs,
         'subtab': subtab,
         'facultades': facultades,
         'areas': areas,
@@ -139,6 +161,11 @@ def catalogo_crud_view(request, modelo, accion):
     """
     CRUD completo para los 5 catálogos maestros desde la interfaz web.
     """
+    model_name = CATALOG_MODELS.get(modelo)
+    operation = CATALOG_ACTIONS.get(accion)
+    if not model_name or not operation:
+        raise PermissionDenied
+    require_administrative_permission(request.user, f'catalogos.{operation}_{model_name}')
     if request.method != 'POST':
         return redirect('core:panel_administracion')
 
@@ -313,6 +340,7 @@ def catalogo_crud_view(request, modelo, accion):
     return redirect(f"{redirect('core:panel_administracion').url}?{tab_redirect}")
 
 
+@user_passes_test(lambda user: user.is_active and user.is_superuser)
 def usuario_crud_view(request, accion):
     """
     CRUD completo de usuarios y asignación de roles desde la web.
@@ -323,7 +351,7 @@ def usuario_crud_view(request, accion):
     try:
         if accion == 'crear':
             username = request.POST.get('username', '').strip().lower()
-            password = request.POST.get('password', '').strip()
+            password = request.POST.get('password', '')
             first_name = request.POST.get('first_name', '').strip()
             last_name = request.POST.get('last_name', '').strip()
             email = request.POST.get('email', '').strip()
@@ -339,6 +367,7 @@ def usuario_crud_view(request, accion):
 
             is_super = (rol == 'ADMIN')
             is_stf = (rol in ['ADMIN', 'UGB_PIF', 'COORDINADOR'])
+            validate_password(password, User(username=username, first_name=first_name, last_name=last_name, email=email))
 
             user = User.objects.create_user(
                 username=username,
@@ -371,12 +400,13 @@ def usuario_crud_view(request, accion):
 
         elif accion == 'password':
             user_id = request.POST.get('user_id')
-            nueva_pass = request.POST.get('nueva_password', '').strip()
+            nueva_pass = request.POST.get('nueva_password', '')
             if not nueva_pass:
                 messages.error(request, "La nueva contraseña no puede estar vacía.")
                 return redirect(f"{redirect('core:panel_administracion').url}?tab=usuarios")
 
             user = get_object_or_404(User, pk=user_id)
+            validate_password(nueva_pass, user)
             user.set_password(nueva_pass)
             user.save()
             registrar_log(request, 'UPDATE', 'auth_user', user.id, {'accion': 'reset_password'})
@@ -401,6 +431,7 @@ def usuario_crud_view(request, accion):
     return redirect(f"{redirect('core:panel_administracion').url}?tab=usuarios")
 
 
+@administrative_permission_required('capacitaciones.change_capacitacion')
 def cambiar_estado_capacitacion_view(request, pk):
     """Cambia el estado de una capacitación de 1 clic desde la web."""
     if request.method == 'POST':
@@ -418,20 +449,5 @@ def cambiar_estado_capacitacion_view(request, pk):
 
 
 def conmutar_rol_web_view(request):
-    """
-    Conmutador rápido de sesión y permisos web:
-    Permite iniciar sesión instantáneamente como Administrador, UGB · PIF o Coordinador.
-    """
-    if request.method == 'POST':
-        username = request.POST.get('username', '').strip().lower()
-        user = User.objects.filter(username=username).first()
-        if user:
-            login(request, user)
-            messages.success(request, f"Sesión activa cambiada a: '{user.username.upper()}'. Permisos administrativos sincronizados.")
-        else:
-            messages.error(request, f"El usuario '{username}' no existe en el sistema.")
-
-        next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or '/'
-        return redirect(next_url)
-
-    return redirect('/')
+    """Legacy role switching now requires explicit account credentials."""
+    return redirect('login')

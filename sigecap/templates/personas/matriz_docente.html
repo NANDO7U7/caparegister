@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
-{% block title %}Matriz de Seguimiento Docente — SIGECAP{% endblock %}
-{% block page_title %}Matriz y Matrícula Docente{% endblock %}
+{% block title %}Gestión de Matrículas — SIGECAP{% endblock %}
+{% block page_title %}Gestión de Matrículas{% endblock %}
 {% block page_subtitle %}Seguimiento al Plan Integral de Formación y Trayectoria de Competencias por Docente{% endblock %}
 
 {% block header_buttons %}
@@ -146,7 +146,7 @@
                 {% empty %}
                 <tr>
                     <td colspan="15" style="text-align: center; padding: 36px; color: var(--text-muted);">
-                        No hay docentes registrados en la matriz.
+                        No hay docentes registrados en Gestión de Matrículas.
                     </td>
                 </tr>
                 {% endfor %}
@@ -161,7 +161,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h3 style="color: var(--color-primary); font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
                 <span class="material-symbols-outlined" style="color: var(--color-secondary);">edit_note</span>
-                <span>Matrícula en Matriz Docente</span>
+                <span>Gestión de Matrículas</span>
             </h3>
             <button type="button" onclick="cerrarModalMatricula()" style="border: none; background: none; cursor: pointer; font-size: 20px; color: var(--text-muted);">&times;</button>
         </div>

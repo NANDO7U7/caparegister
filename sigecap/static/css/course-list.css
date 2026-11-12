@@ -1,0 +1,94 @@
+/* Local overrides: other modules retain the shared theme's layout. */
+.courses-page .material-symbols-outlined {
+  flex-shrink: 0;
+  width: 1em;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.courses-page .app-header {
+  height: auto;
+  min-height: 68px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px 24px;
+  padding: 20px 32px;
+}
+
+.courses-page .header-title {
+  flex: 1 1 340px;
+  min-width: 0;
+}
+
+.courses-page .header-title h2 { line-height: 1.4; }
+.courses-page .header-title > span { line-height: 1.6; }
+
+.courses-page .header-actions {
+  flex: 1 1 560px;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.courses-page .header-actions .search-bar {
+  flex: 1 1 240px;
+  width: auto;
+  min-width: min(240px, 100%);
+  max-width: 360px;
+  min-height: 40px;
+}
+
+.courses-page .search-bar input { min-width: 0; }
+.courses-page .header-actions .btn,
+.courses-page .courses-table-actions .btn {
+  height: auto;
+  min-height: 40px;
+  max-width: 100%;
+  padding: 10px 14px;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+.courses-page .courses-filters { padding: 16px 24px; }
+.courses-page .courses-filter-form,
+.courses-page .courses-table-actions,
+.courses-page .courses-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.courses-page .courses-filter-search { flex: 2 1 230px; min-width: 0; }
+.courses-page .courses-filter-field { flex: 1 1 160px; min-width: 0; }
+.courses-page .courses-filter-form .form-control { width: 100%; min-width: 0; }
+.courses-page .courses-table-actions { gap: 8px; }
+.courses-page .card-header { flex-wrap: wrap; gap: 16px; }
+.courses-page .card-title { min-width: 0; }
+.courses-page .courses-alert-message { display: flex; align-items: center; gap: 10px; flex: 1 1 300px; min-width: 0; }
+.courses-page .courses-alert-message > span { flex-shrink: 0; }
+.courses-page .courses-alert-message > div { min-width: 0; overflow-wrap: break-word; }
+.courses-page .table-responsive { width: 100%; min-width: 0; }
+
+/* Keep the open navigation available without consuming the mobile content width. */
+@media (max-width: 640px) {
+  .courses-page .app-container { flex-direction: column; }
+  .courses-page .app-sidebar { width: 100%; }
+  .courses-page .sidebar-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .courses-page .nav-section-title { grid-column: 1 / -1; }
+  .courses-page .nav-link-item { min-width: 0; padding: 10px; gap: 8px; font-size: 12px; }
+  .courses-page .nav-link-item > span:last-child { min-width: 0; overflow-wrap: break-word; }
+  .courses-page .sidebar-footer { flex-wrap: wrap; gap: 12px; }
+  .courses-page .app-header { padding: 20px 16px; position: static; }
+  .courses-page .header-actions { justify-content: flex-start; }
+  .courses-page .header-actions .search-bar { max-width: none; flex-basis: 100%; }
+  .courses-page .header-actions .btn { flex: 1 1 150px; }
+  .courses-page .view-content { padding: 20px 16px; }
+  .courses-page .courses-filters { padding: 16px; }
+  .courses-page .courses-filter-search,
+  .courses-page .courses-filter-field { flex-basis: 100%; }
+  .courses-page .courses-table-actions { width: 100%; }
+  .courses-page .courses-table-actions .btn { flex: 1 1 140px; }
+}

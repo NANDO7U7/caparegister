@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Flujo 5: Exportación de Documentos y Casos de Error', () => {
   test('Debe permitir exportar a Excel y verificar respuesta del endpoint', async ({ page }) => {

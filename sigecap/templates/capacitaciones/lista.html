@@ -1,4 +1,10 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block body_class %}courses-page{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=20261111-1">
+{% endblock %}
 
 {% block title %}Listado de Capacitaciones — SIGECAP{% endblock %}
 {% block page_title %}Catálogo Maestro de Capacitaciones{% endblock %}
@@ -22,8 +28,8 @@
 {% block content %}
 <!-- Alerta de Evidencias y Diplomas Pendientes -->
 {% if total_evidencias_pendientes > 0 %}
-<div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-md); padding: 14px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
-    <div style="display: flex; align-items: center; gap: 10px;">
+<div class="courses-alert" style="background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-md); padding: 14px 20px; margin-bottom: 20px;">
+    <div class="courses-alert-message">
         <span class="material-symbols-outlined" style="color: var(--color-warning); font-size: 24px;">notification_important</span>
         <div>
             <strong style="color: #92400e; font-size: 13px;">Alerta de Evidencias Digitales:</strong>
@@ -38,13 +44,13 @@
 {% endif %}
 
 <!-- Barra de Filtros Rápidos (Google Stitch Design) -->
-<div class="card" style="padding: 16px 24px; margin-bottom: 20px;">
-    <form method="GET" style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 200px;">
+<div class="card courses-filters" style="margin-bottom: 20px;">
+    <form method="GET" class="courses-filter-form">
+        <div class="courses-filter-search">
             <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Buscar por código, tema o palabra clave...">
         </div>
 
-        <div style="width: 160px;">
+        <div class="courses-filter-field">
             <select name="estado" class="form-control">
                 <option value="">Todos los Estados</option>
                 <option value="Planificada" {% if estado_filtro == 'Planificada' %}selected{% endif %}>Planificada</option>
@@ -54,7 +60,7 @@
             </select>
         </div>
 
-        <div style="width: 170px;">
+        <div class="courses-filter-field">
             <select name="area" class="form-control">
                 <option value="">Todas las Áreas</option>
                 {% for area in areas %}
@@ -63,7 +69,7 @@
             </select>
         </div>
 
-        <div style="width: 180px;">
+        <div class="courses-filter-field">
             <select name="facultad" class="form-control">
                 <option value="">Todas las Facultades</option>
                 {% for f in facultades %}
@@ -92,7 +98,7 @@
             <span class="material-symbols-outlined" style="color: var(--color-primary);">format_list_bulleted</span>
             <span>Registros Encontrados ({{ capacitaciones.count }})</span>
         </div>
-        <div style="display: flex; gap: 8px;">
+        <div class="courses-table-actions">
             <a href="{% url 'capacitaciones:calendario' %}" class="btn btn-outline btn-sm">
                 <span class="material-symbols-outlined" style="font-size: 16px;">calendar_month</span>
                 <span>Calendario</span>

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Flujo 3: Formulario Modal, Validaciones y CRUD en PostgreSQL', () => {
   test.beforeEach(async ({ page }) => {

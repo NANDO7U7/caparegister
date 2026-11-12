@@ -1,3 +1,4 @@
+from django.contrib.auth.decorators import permission_required
 import os
 import io
 from datetime import datetime
@@ -310,13 +311,11 @@ def descargar_constancia_pdf(request, pk):
     return response
 
 
+@permission_required('personas.add_persona', raise_exception=True)
 def crear_persona(request):
     """
     Formulario de registro para dar de alta a un nuevo docente o colaborador administrativo.
     """
-    if request.user.is_authenticated and (request.user.username == 'coordinador' or (not request.user.is_superuser and not request.user.has_perm('personas.add_persona'))):
-        messages.error(request, "Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).")
-        return redirect('personas:lista')
 
     form = PersonaForm()
     automatico = True
@@ -375,15 +374,13 @@ def crear_persona(request):
     return render(request, 'personas/crear_editar.html', context)
 
 
+@permission_required('personas.change_persona', raise_exception=True)
 def editar_persona(request, pk):
     """
     Formulario para editar la información de un docente o colaborador existente.
     """
     persona = get_object_or_404(Persona, pk=pk)
 
-    if request.user.is_authenticated and (request.user.username == 'coordinador' or (not request.user.is_superuser and not request.user.has_perm('personas.change_persona'))):
-        messages.error(request, "Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).")
-        return redirect('personas:ficha', pk=pk)
 
     form = PersonaForm(instance=persona)
     if request.method == 'POST':
@@ -515,13 +512,11 @@ def matriz_docente_view(request):
     return render(request, 'personas/matriz_docente.html', context)
 
 
+@permission_required('personas.change_matriculamatrizdocente', raise_exception=True)
 def matricular_docente_matriz(request):
     """
     Registra o actualiza el estado de un docente en una competencia específica de la Matriz.
     """
-    if request.user.is_authenticated and (request.user.username == 'coordinador' or (not request.user.is_superuser and not request.user.has_perm('personas.change_matriculamatrizdocente'))):
-        messages.error(request, "Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).")
-        return redirect('personas:matriz_docente')
 
     if request.method == 'POST':
         persona_id = request.POST.get('persona_id')

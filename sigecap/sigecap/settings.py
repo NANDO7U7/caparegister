@@ -5,7 +5,6 @@ Sistema de Gestión de Capacitaciones Docentes y Administrativas.
 
 from pathlib import Path
 import os
-import sys
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -16,17 +15,9 @@ try:
 except ImportError:
     pass
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
+from .environment import configuration
 
-SECRET_KEY = os.environ.get(
-    'SECRET_KEY',
-    'django-insecure-sigecap-university-training-mgmt-sys-key-2026-prod'
-)
-
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
-
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,testserver').split(',')
+globals().update(configuration(os.environ, BASE_DIR))
 
 
 # Application definition
@@ -54,6 +45,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.auth.middleware.LoginRequiredMiddleware',
+    'apps.core.middleware.PrivateResponseMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -79,32 +72,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'sigecap.wsgi.application'
 ASGI_APPLICATION = 'sigecap.asgi.application'
-
-
-# Database
-# Support PostgreSQL when configured, or fallback to SQLite for local development.
-
-DB_ENGINE = os.environ.get('DB_ENGINE', 'django.db.backends.sqlite3')
-DB_NAME = os.environ.get('DB_NAME', str(BASE_DIR / 'db.sqlite3'))
-
-if 'postgres' in DB_ENGINE or os.environ.get('USE_POSTGRES', 'False') == 'True':
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME', 'sigecap_db'),
-            'USER': os.environ.get('DB_USER', 'sigecap_admin'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', 'sigecap_secure_password_2026'),
-            'HOST': os.environ.get('DB_HOST', 'localhost'),
-            'PORT': os.environ.get('DB_PORT', '5432'),
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
 
 
 # Password validation
@@ -168,4 +135,3 @@ SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
-

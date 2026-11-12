@@ -1,4 +1,13 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<style>
+    .dashboard-charts { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 24px; margin-bottom: 24px; }
+    .dashboard-empty { height: 100%; display: grid; place-items: center; text-align: center; color: var(--text-muted); }
+    @media (max-width: 800px) { .dashboard-charts { grid-template-columns: minmax(0, 1fr); } }
+</style>
+{% endblock %}
 
 {% block title %}Dashboard Principal — SIGECAP{% endblock %}
 {% block page_title %}Panel de Control y Analíticas{% endblock %}
@@ -65,7 +74,7 @@
             <div class="kpi-value">{{ total_horas }}h</div>
             <div class="kpi-trend">
                 <span class="material-symbols-outlined" style="font-size: 14px;">history_edu</span>
-                <span>Horas académicas</span>
+                <span>Duración registrada: en curso y finalizadas</span>
             </div>
         </div>
     </div>
@@ -76,7 +85,7 @@
         </div>
         <div class="kpi-info">
             <h4>Gasto Ejecutado</h4>
-            <div class="kpi-value">L. {{ presupuesto_ejecutado|floatformat:0 }}</div>
+            <div class="kpi-value">L. {{ presupuesto_ejecutado|floatformat:2 }}</div>
             <div class="kpi-trend">
                 <span class="material-symbols-outlined" style="font-size: 14px;">account_balance</span>
                 <span>Inversión institucional</span>
@@ -90,17 +99,21 @@
         </div>
         <div class="kpi-info">
             <h4>Satisfacción</h4>
-            <div class="kpi-value" style="color: #b45309;">{{ satisfaccion_promedio }} <small style="font-size: 14px;">/ 5</small></div>
+            {% if total_encuestas %}
+            <div class="kpi-value" style="color: #b45309;">{{ satisfaccion_promedio|floatformat:1 }} <small style="font-size: 14px;">/ 5</small></div>
             <div class="kpi-trend">
                 <span class="material-symbols-outlined" style="font-size: 14px;">sentiment_very_satisfied</span>
-                <span>{{ pct_satisfaccion }}% CSAT Calidad</span>
+                <span>{{ pct_satisfaccion|floatformat:1 }}% del puntaje máximo · {{ total_encuestas }} encuestas</span>
             </div>
+            {% else %}
+            <div style="color: var(--text-muted); margin-top: 8px;">Sin datos disponibles</div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <!-- Sección de Gráficos y Visualizaciones -->
-<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;">
+<div class="dashboard-charts">
     <!-- Gráfico de Tendencia Mensual -->
     <div class="card" style="margin-bottom: 0;">
         <div class="card-header">
@@ -108,10 +121,14 @@
                 <span class="material-symbols-outlined" style="color: var(--color-secondary);">monitoring</span>
                 <span>Tendencia de Participación y Formaciones</span>
             </div>
-            <span style="font-size: 12px; color: var(--text-muted);">Año Fiscal {{ CURRENT_YEAR }}</span>
+            <span style="font-size: 12px; color: var(--text-muted);">Año calendario {{ trend_year }} · por mes de inicio</span>
         </div>
         <div style="height: 260px; position: relative;">
-            <canvas id="trendChart"></canvas>
+            {% if has_trend_data %}
+            <canvas id="trendChart" aria-label="Participaciones con asistencia y formaciones por mes" role="img"></canvas>
+            {% else %}
+            <div class="dashboard-empty">Sin datos disponibles</div>
+            {% endif %}
         </div>
     </div>
 
@@ -124,7 +141,11 @@
             </div>
         </div>
         <div style="height: 260px; position: relative; display: flex; align-items: center; justify-content: center;">
-            <canvas id="areaChart"></canvas>
+            {% if area_values %}
+            <canvas id="areaChart" aria-label="Capacitaciones registradas por área" role="img"></canvas>
+            {% else %}
+            <div class="dashboard-empty">Sin datos disponibles</div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -164,7 +185,7 @@
                     </td>
                     <td>
                         <div style="font-weight: 600; color: var(--text-primary);">{{ cap.nombre }}</div>
-                        <small style="color: var(--text-muted);">{{ cap.proveedor.nombre|default:"Facilitador Interno" }}</small>
+                        <small style="color: var(--text-muted);">{{ cap.proveedor.nombre|default:"Sin proveedor registrado" }}</small>
                     </td>
                     <td>
                         <span style="font-size: 12px; background: #e0e7ff; color: #1e3a8a; padding: 3px 8px; border-radius: 4px; font-weight: 500;">
@@ -209,71 +230,10 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    // Gráfico de Tendencia Mensual
-    const ctxTrend = document.getElementById('trendChart').getContext('2d');
-    new Chart(ctxTrend, {
-        type: 'line',
-        data: {
-            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
-            datasets: [{
-                label: 'Participantes Capacitados',
-                data: [12, 19, 28, 35, 42, 60, 48, 55, 70, 65, 80, 95],
-                borderColor: '#0051d5',
-                backgroundColor: 'rgba(0, 81, 213, 0.08)',
-                fill: true,
-                tension: 0.35,
-                borderWidth: 2.5,
-                pointBackgroundColor: '#0051d5',
-                pointRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: { color: '#f1f5f9' }
-                },
-                x: {
-                    grid: { display: false }
-                }
-            }
-        }
-    });
-
-    // Gráfico Doughnut por Áreas
-    const ctxArea = document.getElementById('areaChart').getContext('2d');
-    const areaLabels = {{ area_labels|safe }};
-    const areaValues = {{ area_values|safe }};
-
-    new Chart(ctxArea, {
-        type: 'doughnut',
-        data: {
-            labels: areaLabels.length > 0 ? areaLabels : ['Pedagógica', 'Tecnológica', 'Investigación', 'Habilidades Blandas', 'Gestión'],
-            datasets: [{
-                data: areaValues.length > 0 ? areaValues : [35, 25, 20, 12, 8],
-                backgroundColor: ['#00236f', '#0051d5', '#316bf3', '#60a5fa', '#93c5fd'],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { boxWidth: 10, font: { size: 11 } }
-                }
-            },
-            cutout: '70%'
-        }
-    });
-});
-</script>
+{{ area_labels|json_script:"dashboard-area-labels" }}
+{{ area_values|json_script:"dashboard-area-values" }}
+{{ trend_labels|json_script:"dashboard-trend-labels" }}
+{{ trend_participaciones|json_script:"dashboard-trend-participaciones" }}
+{{ trend_formaciones|json_script:"dashboard-trend-formaciones" }}
+<script src="{% static 'js/dashboard.js' %}" defer></script>
 {% endblock %}

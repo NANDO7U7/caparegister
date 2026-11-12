@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Flujo 4: Control de Acceso y Roles (RBAC) y Privacidad de Credenciales', () => {
   test.beforeEach(async ({ page }) => {
@@ -7,16 +7,16 @@ test.describe('Flujo 4: Control de Acceso y Roles (RBAC) y Privacidad de Credenc
 
   test('Credenciales no deben mostrarse en ningún panel ni interfaz', async ({ page }) => {
     // 1. Verificar que no haya contraseñas en texto plano expuestas en el DOM visible
-    await expect(page.locator('body')).not.toContainText('admin2026');
-    await expect(page.locator('body')).not.toContainText('coord2026');
-    await expect(page.locator('body')).not.toContainText('lectura2026');
-    await expect(page.locator('body')).not.toContainText('ugbpif2026');
+    await expect(page.locator('body')).not.toContainText(process.env.SIGECAP_E2E_ADMIN_PASSWORD!);
+    await expect(page.locator('body')).not.toContainText(process.env.SIGECAP_E2E_COORD_PASSWORD!);
+    await expect(page.locator('body')).not.toContainText(process.env.SIGECAP_E2E_CONSULTA_PASSWORD!);
+    await expect(page.locator('body')).not.toContainText(process.env.SIGECAP_E2E_PIF_PASSWORD!);
 
     // 2. Abrir modal de autenticación y verificar que campos estén vacíos y sin tarjetas de ayuda con claves
     await page.click('button:has-text("Cambiar Rol")');
     await expect(page.locator('#loginModal')).toBeVisible();
-    await expect(page.locator('#loginModal')).not.toContainText('admin2026');
-    await expect(page.locator('#loginModal')).not.toContainText('coord2026');
+    await expect(page.locator('#loginModal')).not.toContainText(process.env.SIGECAP_E2E_ADMIN_PASSWORD!);
+    await expect(page.locator('#loginModal')).not.toContainText(process.env.SIGECAP_E2E_COORD_PASSWORD!);
     await expect(page.locator('#loginUser')).toHaveValue('');
     await expect(page.locator('#loginPass')).toHaveValue('');
   });
@@ -25,7 +25,7 @@ test.describe('Flujo 4: Control de Acceso y Roles (RBAC) y Privacidad de Credenc
     // 1. Iniciar sesión como Coordinador
     await page.click('button:has-text("Cambiar Rol")');
     await page.fill('#loginUser', 'coordinador');
-    await page.fill('#loginPass', 'coord2026');
+    await page.fill('#loginPass', process.env.SIGECAP_E2E_COORD_PASSWORD!);
     await page.click('#loginModal button[type="submit"]');
 
     // 2. Verificar que se cierra el modal y el rol muestra "Solo Lectura"
@@ -55,7 +55,7 @@ test.describe('Flujo 4: Control de Acceso y Roles (RBAC) y Privacidad de Credenc
     // 1. Iniciar sesión como usuario gestor UGB · PIF
     await page.click('button:has-text("Cambiar Rol")');
     await page.fill('#loginUser', 'ugb_pif');
-    await page.fill('#loginPass', 'ugbpif2026');
+    await page.fill('#loginPass', process.env.SIGECAP_E2E_PIF_PASSWORD!);
     await page.click('#loginModal button[type="submit"]');
 
     // 2. Verificar que se cierra el modal y el rol muestra edición de UGB · PIF
@@ -81,7 +81,7 @@ test.describe('Flujo 4: Control de Acceso y Roles (RBAC) y Privacidad de Credenc
     // 1. Iniciar sesión como Administrador
     await page.click('button:has-text("Cambiar Rol")');
     await page.fill('#loginUser', 'admin');
-    await page.fill('#loginPass', 'admin2026');
+    await page.fill('#loginPass', process.env.SIGECAP_E2E_ADMIN_PASSWORD!);
     await page.click('#loginModal button[type="submit"]');
 
     // 2. Verificar estado

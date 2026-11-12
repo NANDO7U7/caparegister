@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Flujo 2: Consola Integral UGB · PIF (Filtros, Pestañas y Métricas)', () => {
   test.beforeEach(async ({ page }) => {

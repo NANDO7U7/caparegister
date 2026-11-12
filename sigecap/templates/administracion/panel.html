@@ -5,10 +5,12 @@
 {% block page_subtitle %}Gestión directa de catálogos maestros, usuarios, roles, capacitaciones y auditoría institucional{% endblock %}
 
 {% block header_buttons %}
+{% if request.user.is_superuser %}
 <button type="button" onclick="openCrearUsuarioModal()" class="btn btn-primary">
     <span class="material-symbols-outlined" style="font-size: 18px;">person_add</span>
     <span>Nuevo Usuario</span>
 </button>
+{% endif %}
 <a href="{% url 'capacitaciones:crear' %}" class="btn btn-secondary">
     <span class="material-symbols-outlined" style="font-size: 18px;">add_circle</span>
     <span>Nueva Capacitación</span>
@@ -104,22 +106,30 @@
 
 <!-- Barra de Pestañas Principales -->
 <div class="admin-nav-tabs">
+    {% if allowed_tabs.catalogos %}
     <a href="?tab=catalogos" class="admin-tab-btn {% if tab_activa == 'catalogos' %}active{% endif %}">
         <span class="material-symbols-outlined" style="font-size: 20px;">dataset</span>
         <span>Catálogos Maestros</span>
     </a>
+    {% endif %}
+    {% if allowed_tabs.usuarios %}
     <a href="?tab=usuarios" class="admin-tab-btn {% if tab_activa == 'usuarios' %}active{% endif %}">
         <span class="material-symbols-outlined" style="font-size: 20px;">manage_accounts</span>
         <span>Usuarios y Roles</span>
     </a>
+    {% endif %}
+    {% if allowed_tabs.capacitaciones %}
     <a href="?tab=capacitaciones" class="admin-tab-btn {% if tab_activa == 'capacitaciones' %}active{% endif %}">
         <span class="material-symbols-outlined" style="font-size: 20px;">school</span>
         <span>Control de Cursos</span>
     </a>
+    {% endif %}
+    {% if allowed_tabs.auditoria %}
     <a href="?tab=auditoria" class="admin-tab-btn {% if tab_activa == 'auditoria' %}active{% endif %}">
         <span class="material-symbols-outlined" style="font-size: 20px;">shield</span>
         <span>Bitácora de Auditoría</span>
     </a>
+    {% endif %}
 </div>
 
 <!-- ==================== PESTAÑA 1: CATÁLOGOS MAESTROS ==================== -->
@@ -623,7 +633,7 @@
                         {{ cap.fecha_inicio|date:"d/m/Y" }} — {{ cap.fecha_fin|date:"d/m/Y" }}
                     </td>
                     <td>
-                        <span class="badge badge-planificada">{{ cap.total_inscritos }} / {{ cap.cupo_maximo }}</span>
+                        <span class="badge badge-planificada">{{ cap.num_inscritos }} / {{ cap.cupo_maximo }}</span>
                     </td>
                     <td>
                         <form method="POST" action="{% url 'core:cambiar_estado_capacitacion' cap.id %}" style="margin: 0;">

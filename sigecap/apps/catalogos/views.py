@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import Facultad, AreaFormacion, TipoModalidad, Proyecto, Proveedor
+from django.core.exceptions import PermissionDenied
+from apps.core.permissions import can_view_catalogs, visible_catalog, require_administrative_permission
 
 def administracion_catalogos(request):
     """
@@ -9,6 +11,10 @@ def administracion_catalogos(request):
     """
     if request.method == 'POST':
         tipo_catalogo = request.POST.get('tipo_catalogo')
+        model_name = {'facultad': 'facultad', 'area': 'areaformacion'}.get(tipo_catalogo)
+        if not model_name:
+            raise PermissionDenied
+        require_administrative_permission(request.user, f'catalogos.add_{model_name}')
         
         if tipo_catalogo == 'facultad':
             codigo = request.POST.get('codigo')
@@ -28,11 +34,13 @@ def administracion_catalogos(request):
                 
         return redirect('catalogos:administracion')
 
-    facultades = Facultad.objects.all().order_by('codigo')
-    areas = AreaFormacion.objects.all().order_by('codigo')
-    tipos_modalidad = TipoModalidad.objects.all().order_by('tipo', 'modalidad')
-    proyectos = Proyecto.objects.all().order_by('codigo')
-    proveedores = Proveedor.objects.all().order_by('nombre')
+    if not can_view_catalogs(request.user):
+        raise PermissionDenied
+    facultades = visible_catalog(request.user, Facultad).order_by('codigo')
+    areas = visible_catalog(request.user, AreaFormacion).order_by('codigo')
+    tipos_modalidad = visible_catalog(request.user, TipoModalidad).order_by('tipo', 'modalidad')
+    proyectos = visible_catalog(request.user, Proyecto).order_by('codigo')
+    proveedores = visible_catalog(request.user, Proveedor).order_by('nombre')
 
     context = {
         'facultades': facultades,

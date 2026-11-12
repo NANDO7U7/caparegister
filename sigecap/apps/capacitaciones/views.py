@@ -7,6 +7,10 @@ from decimal import Decimal
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.db.models import Q, Avg, Count, Sum
+from django.db import transaction
+from django.contrib.auth.decorators import permission_required
+from django.core.exceptions import PermissionDenied
+from apps.core.permissions import catalog_get_or_create, record_get_or_create, require_administrative_permission, pif_user_profile
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
@@ -187,13 +191,11 @@ def detalle_capacitacion(request, pk):
     return render(request, 'capacitaciones/detalle.html', context)
 
 
+@permission_required('capacitaciones.add_capacitacion', raise_exception=True)
 def crear_capacitacion(request):
     """
     Formulario de registro de una nueva capacitación.
     """
-    if request.user.is_authenticated and (request.user.username == 'coordinador' or (not request.user.is_superuser and not request.user.has_perm('capacitaciones.add_capacitacion'))):
-        messages.error(request, "Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).")
-        return redirect('capacitaciones:lista')
 
     if request.method == 'POST':
         codigo = request.POST.get('codigo')
@@ -256,6 +258,7 @@ def crear_capacitacion(request):
     return render(request, 'capacitaciones/crear_editar.html', context)
 
 
+@permission_required('capacitaciones.change_capacitacion', raise_exception=True)
 def editar_capacitacion(request, pk):
     """
     Formulario de edición de una capacitación existente.
@@ -266,9 +269,6 @@ def editar_capacitacion(request, pk):
         pk=pk
     )
 
-    if request.user.is_authenticated and (request.user.username == 'coordinador' or (not request.user.is_superuser and not request.user.has_perm('capacitaciones.change_capacitacion'))):
-        messages.error(request, "Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).")
-        return redirect('capacitaciones:detalle', pk=pk)
 
     if request.method == 'POST':
         codigo = request.POST.get('codigo')
@@ -331,13 +331,11 @@ def editar_capacitacion(request, pk):
     return render(request, 'capacitaciones/crear_editar.html', context)
 
 
+@permission_required('capacitaciones.add_capacitacion', raise_exception=True)
 def duplicar_capacitacion(request, pk):
     """
     Duplica/Clona una capacitación existente para crear rápidamente una nueva edición en segundos.
     """
-    if request.user.is_authenticated and (request.user.username == 'coordinador' or (not request.user.is_superuser and not request.user.has_perm('capacitaciones.add_capacitacion'))):
-        messages.error(request, "Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).")
-        return redirect('capacitaciones:detalle', pk=pk)
 
     original = get_object_or_404(Capacitacion, pk=pk)
     
@@ -465,6 +463,7 @@ def registrar_asistencia_qr(request, pk):
     return render(request, 'capacitaciones/asistencia_scan.html', context)
 
 
+@permission_required('capacitaciones.add_evidencia', raise_exception=True)
 def cargar_evidencia_view(request, pk):
     """
     Carga de evidencias documentales (listas firmadas, fotos, informes, copias de diplomas).
@@ -504,6 +503,7 @@ def cargar_evidencia_view(request, pk):
 
 
 
+@permission_required('capacitaciones.add_participacion', raise_exception=True)
 def inscribir_participante(request, pk):
     """
     Inscribe o asigna un participante a la capacitación.
@@ -680,6 +680,7 @@ def sistema_gestion_view(request):
 
     context = {
         'capacitaciones_json': safe_caps_json,
+        'current_user_profile': pif_user_profile(request.user),
         'proyectos_json': safe_proy_json,
         'total_eventos': len(serialized_caps),
         'areas': areas,
@@ -701,38 +702,19 @@ def auth_login_api(request):
     except Exception:
         data = request.POST.dict()
 
-    username = (data.get('username') or '').strip().lower()
-    password = (data.get('password') or '').strip()
+    if not isinstance(data, dict):
+        return JsonResponse({'status': 'error', 'message': 'Solicitud no válida.'}, status=400)
+    username = (data.get('username') or '').strip()
+    password = data.get('password') or ''
 
     from django.contrib.auth import authenticate, login
     user = authenticate(request, username=username, password=password)
 
     if user is not None:
         login(request, user)
-        # Asignar rol y etiqueta de permisos según el perfil
-        if user.is_superuser or user.username == 'admin':
-            rol = 'ADMIN'
-            label = 'Edición Total'
-        elif user.username == 'coordinador':
-            rol = 'COORDINADOR'
-            label = 'Solo Lectura'
-        elif user.username == 'ugb_pif' or user.has_perm('capacitaciones.change_capacitacion'):
-            rol = 'UGB_PIF'
-            label = 'Edición UGB · PIF'
-        else:
-            rol = 'CONSULTA'
-            label = 'Solo Lectura'
-
-        nombre = f"{user.first_name} {user.last_name}".strip() or user.username
-        return JsonResponse({
-            'status': 'success',
-            'user': {
-                'username': user.username,
-                'nombre': nombre,
-                'rol': rol,
-                'label': label
-            }
-        })
+        from django.middleware.csrf import get_token
+        return JsonResponse({'status': 'success', 'user': pif_user_profile(user),
+                             'csrf_token': get_token(request)})
     else:
         return JsonResponse({
             'status': 'error',
@@ -741,6 +723,7 @@ def auth_login_api(request):
 
 
 @require_http_methods(["POST"])
+@transaction.atomic
 def guardar_capacitacion_pif_api(request):
     """API para registrar o actualizar capacitaciones directamente en PostgreSQL con validación estricta de permisos."""
     try:
@@ -748,17 +731,16 @@ def guardar_capacitacion_pif_api(request):
     except Exception:
         data = request.POST.dict()
 
-    # Validación estricta en servidor: El rol Coordinador tiene la edición deshabilitada
-    user_role = request.headers.get('X-User-Role') or (data.get('user_role') if isinstance(data, dict) else None)
-    caller_username = getattr(request.user, 'username', '') or (data.get('username') if isinstance(data, dict) else '')
-
-    if (request.user.is_authenticated and (request.user.username == 'coordinador' or (not request.user.is_superuser and not request.user.has_perm('capacitaciones.change_capacitacion')))) or user_role in ['COORDINADOR', 'CONSULTA'] or caller_username in ['coordinador', 'consulta']:
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).'
-        }, status=403)
-
+    if not isinstance(data, dict):
+        return JsonResponse({'status': 'error', 'message': 'Solicitud no valida.'}, status=400)
     cap_id = data.get('id')
+    permission = 'capacitaciones.change_capacitacion' if cap_id else 'capacitaciones.add_capacitacion'
+    if not request.user.has_perm(permission):
+        raise PermissionDenied
+    # An update must refer to an existing event; never fall back to creation.
+    if cap_id:
+        get_object_or_404(Capacitacion, pk=cap_id)
+
     nombre = data.get('nombre_evento', '').strip()
     if not nombre:
         return JsonResponse({'status': 'error', 'message': 'El nombre del evento es obligatorio.'}, status=400)
@@ -767,30 +749,32 @@ def guardar_capacitacion_pif_api(request):
     modalidad_str = data.get('modalidad', 'Virtual')
     tipo_mod = TipoModalidad.objects.filter(tipo__iexact=tipo_str, modalidad__iexact=modalidad_str).first()
     if not tipo_mod:
-        tipo_mod, _ = TipoModalidad.objects.get_or_create(tipo=tipo_str, modalidad=modalidad_str)
+        tipo_mod, _ = catalog_get_or_create(request, TipoModalidad, tipo=tipo_str, modalidad=modalidad_str)
 
     area_str = data.get('area_pif', 'Especialidad')
     area = AreaFormacion.objects.filter(nombre__iexact=area_str).first()
     if not area:
-        area, _ = AreaFormacion.objects.get_or_create(codigo=f"PIF-{area_str[:3].upper()}", defaults={'nombre': area_str})
+        area, _ = catalog_get_or_create(request, AreaFormacion, codigo=f"PIF-{area_str[:3].upper()}", defaults={'nombre': area_str})
 
     cod_proy = data.get('codigo_proyecto', 'IGA004').strip().upper()
     proy = Proyecto.objects.filter(codigo=cod_proy).first()
     if not proy:
-        proy, _ = Proyecto.objects.get_or_create(codigo=cod_proy, defaults={'nombre': f'Proyecto {cod_proy}', 'presupuesto_asignado': Decimal('2000.00')})
+        proy, _ = catalog_get_or_create(request, Proyecto, codigo=cod_proy, defaults={'nombre': f'Proyecto {cod_proy}', 'presupuesto_asignado': Decimal('2000.00')})
 
     prov_nombre = data.get('proveedor', 'No especificado').strip()
     contacto = data.get('contacto', '').strip()
     localidad = data.get('localidad', 'Nacional').strip()
     proveedor = Proveedor.objects.filter(nombre__iexact=prov_nombre).first()
     if not proveedor and prov_nombre:
+        require_administrative_permission(request.user, 'catalogos.add_proveedor')
         proveedor = Proveedor.objects.create(
             nombre=prov_nombre,
             contacto_nombre=contacto,
             pais=localidad,
             tipo='Interno' if 'UGB' in prov_nombre.upper() else 'Externo'
         )
-    elif proveedor and contacto:
+    elif proveedor and contacto and (proveedor.contacto_nombre != contacto or proveedor.pais != localidad):
+        require_administrative_permission(request.user, 'catalogos.change_proveedor')
         proveedor.contacto_nombre = contacto
         proveedor.pais = localidad
         proveedor.save()
@@ -851,7 +835,7 @@ def guardar_capacitacion_pif_api(request):
     for u_nom in unidades:
         fac = Facultad.objects.filter(nombre__iexact=u_nom).first()
         if not fac:
-            fac, _ = Facultad.objects.get_or_create(codigo=u_nom[:4].upper(), defaults={'nombre': u_nom})
+            fac, _ = catalog_get_or_create(request, Facultad, codigo=u_nom[:4].upper(), defaults={'nombre': u_nom})
         fac_objs.append(fac)
     cap.facultades.set(fac_objs)
 
@@ -876,6 +860,8 @@ def guardar_capacitacion_pif_api(request):
         if not persona:
             persona = Persona.objects.filter(nombres__iexact=nom_part).first()
         if not persona:
+            if not request.user.has_perm('personas.add_persona'):
+                raise PermissionDenied
             p_code = f"DOC-{Persona.objects.count() + 1:04d}"
             persona = Persona.objects.create(
                 codigo_empleado=p_code,
@@ -885,7 +871,9 @@ def guardar_capacitacion_pif_api(request):
                 facultad=fac_objs[0] if fac_objs else None,
                 tipo_personal='Docente'
             )
-        elif puesto:
+        elif puesto and persona.cargo_actual != puesto:
+            if not request.user.has_perm('personas.change_persona'):
+                raise PermissionDenied
             persona.cargo_actual = puesto
             persona.save()
 
@@ -928,16 +916,9 @@ def guardar_capacitacion_pif_api(request):
 
 
 @require_http_methods(["POST", "DELETE"])
+@permission_required('capacitaciones.delete_capacitacion', raise_exception=True)
 def eliminar_capacitacion_pif_api(request, pk):
     """API para eliminar una capacitación de PostgreSQL."""
-    user_role = request.headers.get('X-User-Role')
-    caller_username = getattr(request.user, 'username', '')
-    if (request.user.is_authenticated and (request.user.username == 'coordinador' or (not request.user.is_superuser and not request.user.has_perm('capacitaciones.delete_capacitacion')))) or user_role in ['COORDINADOR', 'CONSULTA'] or caller_username in ['coordinador', 'consulta']:
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Acceso denegado: El rol Coordinador tiene la edición y eliminación deshabilitadas.'
-        }, status=403)
-
     cap = get_object_or_404(Capacitacion, pk=pk)
     nombre = cap.nombre
     cap.delete()
@@ -945,16 +926,10 @@ def eliminar_capacitacion_pif_api(request, pk):
 
 
 @require_http_methods(["POST"])
+@permission_required('capacitaciones.add_capacitacion', raise_exception=True)
+@transaction.atomic
 def importar_excel_pif_api(request):
     """API para procesar e importar la plantilla Excel institucional directamente a PostgreSQL."""
-    user_role = request.headers.get('X-User-Role') or request.POST.get('user_role')
-    caller_username = getattr(request.user, 'username', '') or request.POST.get('username')
-    if (request.user.is_authenticated and (request.user.username == 'coordinador' or (not request.user.is_superuser and not request.user.has_perm('capacitaciones.add_capacitacion')))) or user_role in ['COORDINADOR', 'CONSULTA'] or caller_username in ['coordinador', 'consulta']:
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Acceso denegado: El rol Coordinador tiene deshabilitada la importación/edición.'
-        }, status=403)
-
     if 'excel_file' not in request.FILES:
         return JsonResponse({'status': 'error', 'message': 'No se adjuntó ningún archivo Excel.'}, status=400)
 
@@ -995,17 +970,17 @@ def importar_excel_pif_api(request):
                 fecha_str = timezone.now().strftime('%Y-%m-%d')
 
             modalidad = str(row[4] or "Virtual").strip()
-            tm, _ = TipoModalidad.objects.get_or_create(tipo=tipo or "Taller", modalidad=modalidad or "Virtual")
+            tm, _ = catalog_get_or_create(request, TipoModalidad, tipo=tipo or "Taller", modalidad=modalidad or "Virtual")
 
             area_str = str(row[14] or "Especialidad").strip()
-            area, _ = AreaFormacion.objects.get_or_create(codigo=f"PIF-{area_str[:3].upper()}", defaults={'nombre': area_str})
+            area, _ = catalog_get_or_create(request, AreaFormacion, codigo=f"PIF-{area_str[:3].upper()}", defaults={'nombre': area_str})
 
             cod_proy = str(row[13] or "IGA004").strip()
-            proy, _ = Proyecto.objects.get_or_create(codigo=cod_proy, defaults={'nombre': f'Proyecto {cod_proy}', 'presupuesto_asignado': Decimal('2000.00')})
+            proy, _ = catalog_get_or_create(request, Proyecto, codigo=cod_proy, defaults={'nombre': f'Proyecto {cod_proy}', 'presupuesto_asignado': Decimal('2000.00')})
 
             prov_str = str(row[1] or "No especificado").strip()
             contacto_str = str(row[2] or "").strip()
-            prov, _ = Proveedor.objects.get_or_create(nombre=prov_str, defaults={'contacto_nombre': contacto_str, 'pais': str(row[3] or 'Nacional')})
+            prov, _ = catalog_get_or_create(request, Proveedor, nombre=prov_str, defaults={'contacto_nombre': contacto_str, 'pais': str(row[3] or 'Nacional')})
 
             try:
                 horas = int(float(row[9] or 8))
@@ -1035,7 +1010,7 @@ def importar_excel_pif_api(request):
             for u in unidades_raw:
                 u = u.strip()
                 if u:
-                    fac, _ = Facultad.objects.get_or_create(codigo=u[:4].upper(), defaults={'nombre': u})
+                    fac, _ = catalog_get_or_create(request, Facultad, codigo=u[:4].upper(), defaults={'nombre': u})
                     cap.facultades.add(fac)
 
             # Participantes
@@ -1044,7 +1019,7 @@ def importar_excel_pif_api(request):
             for idx, p_name in enumerate(part_names):
                 puesto = part_puestos[idx] if idx < len(part_puestos) else (part_puestos[0] if part_puestos else "Docente")
                 part_split = p_name.split(' ', 1)
-                persona, _ = Persona.objects.get_or_create(
+                persona, _ = record_get_or_create(request, Persona,
                     nombres=part_split[0],
                     apellidos=part_split[1] if len(part_split) > 1 else '',
                     defaults={'codigo_empleado': f"DOC-{Persona.objects.count() + 1:04d}", 'cargo_actual': puesto, 'tipo_personal': 'Docente'}
@@ -1080,7 +1055,10 @@ def importar_excel_pif_api(request):
             'skipped_notes': skipped_notes,
             'message': f'Se importaron {imported_count} capacitaciones a PostgreSQL exitosamente ({skipped_notes} notas administrativas omitidas).'
         })
+    except PermissionDenied:
+        raise
     except Exception as e:
+        transaction.set_rollback(True)
         return JsonResponse({'status': 'error', 'message': f'Error al importar Excel: {str(e)}'}, status=500)
 
 
@@ -1195,13 +1173,11 @@ def exportar_excel_pif(request):
     return response
 
 
+@permission_required('capacitaciones.delete_capacitacion', raise_exception=True)
 def eliminar_capacitacion_view(request, pk):
     """
     Eliminación de una capacitación desde la interfaz web (sin pasar por Django Admin).
     """
-    if request.user.is_authenticated and (request.user.username == 'coordinador' or (not request.user.is_superuser and not request.user.has_perm('capacitaciones.delete_capacitacion'))):
-        messages.error(request, "Acceso denegado: El rol Coordinador tiene la eliminación deshabilitada. Inicia como Administrador para proceder.")
-        return redirect('capacitaciones:detalle', pk=pk)
 
     cap = get_object_or_404(Capacitacion, pk=pk)
     codigo = cap.codigo
@@ -1232,13 +1208,11 @@ def eliminar_capacitacion_view(request, pk):
     return redirect('capacitaciones:detalle', pk=pk)
 
 
+@permission_required('capacitaciones.change_capacitacion', raise_exception=True)
 def eliminar_participante_view(request, pk, part_id):
     """
     Elimina a un participante de una capacitación directamente desde la web.
     """
-    if request.user.is_authenticated and (request.user.username == 'coordinador' or (not request.user.is_superuser and not request.user.has_perm('capacitaciones.change_capacitacion'))):
-        messages.error(request, "Acceso denegado: Se requieren permisos de Administrador para modificar inscripciones.")
-        return redirect('capacitaciones:detalle', pk=pk)
 
     participacion = get_object_or_404(Participacion, pk=part_id, capacitacion_id=pk)
     nombre_persona = participacion.persona.nombre_completo
@@ -1249,13 +1223,11 @@ def eliminar_participante_view(request, pk, part_id):
     return redirect('capacitaciones:detalle', pk=pk)
 
 
+@permission_required('capacitaciones.change_capacitacion', raise_exception=True)
 def eliminar_evidencia_view(request, pk, evidencia_id):
     """
     Elimina una evidencia documental de la capacitación desde la web.
     """
-    if request.user.is_authenticated and (request.user.username == 'coordinador' or (not request.user.is_superuser and not request.user.has_perm('capacitaciones.change_capacitacion'))):
-        messages.error(request, "Acceso denegado: Se requieren permisos de Administrador para eliminar evidencias.")
-        return redirect('capacitaciones:detalle', pk=pk)
 
     evidencia = get_object_or_404(Evidencia, pk=evidencia_id, capacitacion_id=pk)
     nombre = evidencia.nombre_original

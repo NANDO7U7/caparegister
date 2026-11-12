@@ -78,6 +78,10 @@
         <button onclick="openLoginModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition shadow-sm">
           Cambiar Rol
         </button>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg">Cerrar sesión</button>
+        </form>
       </div>
     </div>
   </header>
@@ -562,19 +566,15 @@
   </div>
 
   <!-- ==================== LÓGICA JAVASCRIPT CONECTADA A DJANGO / POSTGRESQL ==================== -->
+  {{ current_user_profile|json_script:"pif-user-profile" }}
   <script>
     // DATOS DESDE EL BACKEND POSTGRESQL
     let capacitaciones = {{ capacitaciones_json|safe }};
     const PROYECTOS_PRESUPUESTO = {{ proyectos_json|safe }};
-    const CSRF_TOKEN = '{{ csrf_token }}';
+    let CSRF_TOKEN = '{{ csrf_token }}';
 
     // Estado del usuario activo (sin exponer contraseñas en el cliente)
-    let currentUser = {
-      username: "{% if request.user.is_authenticated %}{{ request.user.username }}{% else %}admin{% endif %}",
-      nombre: "{% if request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.username }}{% else %}Administrador UGB · PIF{% endif %}",
-      rol: "{% if request.user.username == 'coordinador' %}COORDINADOR{% elif request.user.username == 'consulta' %}CONSULTA{% elif request.user.username == 'ugb_pif' %}UGB_PIF{% else %}ADMIN{% endif %}",
-      label: "{% if request.user.username == 'coordinador' or request.user.username == 'consulta' %}Solo Lectura{% elif request.user.username == 'ugb_pif' %}Edición UGB · PIF{% else %}Edición Total{% endif %}"
-    };
+    let currentUser = JSON.parse(document.getElementById('pif-user-profile').textContent);
 
     // 1. INICIALIZACIÓN
     function initApp() {
@@ -601,8 +601,8 @@
 
     async function handleLogin(e) {
       e.preventDefault();
-      const u = document.getElementById("loginUser").value.trim().toLowerCase();
-      const p = document.getElementById("loginPass").value.trim();
+      const u = document.getElementById("loginUser").value.trim();
+      const p = document.getElementById("loginPass").value;
       const err = document.getElementById("loginError");
       const btn = document.getElementById("btnSubmitLogin");
       err.classList.add("hidden");
@@ -620,6 +620,10 @@
         const res = await response.json();
         if (response.ok && res.status === "success") {
           currentUser = res.user;
+          CSRF_TOKEN = res.csrf_token;
+          document.querySelectorAll('input[name="csrfmiddlewaretoken"]').forEach(input => {
+            input.value = CSRF_TOKEN;
+          });
           updateAuthUI();
           closeLoginModal();
           renderCapacitaciones();
@@ -636,15 +640,9 @@
       }
     }
 
-    function canEdit() {
-      // Habilitar edición para UGB · PIF / Administrador.
-      // En el panel del coordinador la edición queda estrictamente deshabilitada (excepto Auditoría).
-      return currentUser.rol === "ADMIN" || currentUser.rol === "UGB_PIF";
-    }
-
-    function canDelete() {
-      return currentUser.rol === "ADMIN" || currentUser.rol === "UGB_PIF";
-    }
+    function canCreate() { return currentUser.can_create === true; }
+    function canEdit() { return currentUser.can_edit === true; }
+    function canDelete() { return currentUser.can_delete === true; }
 
     function updateAuthUI() {
       document.getElementById("currentUserName").textContent = `${currentUser.nombre}`;
@@ -654,8 +652,8 @@
         ? "bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] uppercase font-bold"
         : "bg-slate-600 text-slate-200 px-2 py-0.5 rounded text-[10px] uppercase font-bold";
 
-      document.getElementById("btnNuevaCap").classList.toggle("hidden", !canEdit());
-      document.getElementById("btnImportarExcel").classList.toggle("hidden", !canEdit());
+      document.getElementById("btnNuevaCap").classList.toggle("hidden", !canCreate());
+      document.getElementById("btnImportarExcel").classList.toggle("hidden", !canCreate());
     }
 
     // 3. FILTRADO Y RENDERIZADO DE CAPACITACIONES
@@ -751,9 +749,9 @@
           `<span class="inline-block bg-slate-100 text-slate-700 text-[11px] font-semibold px-2 py-0.5 rounded mr-1 mb-1 border border-slate-200">${escapeHtml(u)}</span>`
         ).join("");
 
-        const accionesHtml = canEdit() ? `
+        const accionesHtml = (canEdit() || canDelete()) ? `
           <div class="flex items-center justify-center gap-1.5">
-            <button onclick="openCapacitacionModal('${c.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1 rounded text-xs font-bold border border-blue-200 transition">Editar</button>
+            ${canEdit() ? `<button onclick="openCapacitacionModal('${c.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1 rounded text-xs font-bold border border-blue-200 transition">Editar</button>` : ""}
             ${canDelete() ? `<button onclick="deleteCapacitacion('${c.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 px-2.5 py-1 rounded text-xs font-bold border border-rose-200 transition">Eliminar</button>` : ""}
           </div>
         ` : `<span class="text-xs text-slate-400 italic">Solo lectura</span>`;
@@ -960,7 +958,7 @@
     }
 
     function openCapacitacionModal(editId = null) {
-      if (!canEdit()) {
+      if (editId ? !canEdit() : !canCreate()) {
         showAlert("Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).", "error");
         return;
       }
@@ -1012,7 +1010,7 @@
 
     async function saveCapacitacion(e) {
       e.preventDefault();
-      if (!canEdit()) {
+      if (document.getElementById("capId").value ? !canEdit() : !canCreate()) {
         showAlert("Acceso denegado: En el panel del coordinador la edición está deshabilitada (excepto en la sección de Auditoría).", "error");
         return;
       }
@@ -1170,7 +1168,7 @@
 
     // 7. IMPORTACIÓN Y EXPORTACIÓN EXCEL (.XLSX) Y PDF
     async function importFromExcel(event) {
-      if (!canEdit()) {
+      if (!canCreate()) {
         showAlert("Acceso denegado: El rol Coordinador tiene deshabilitada la importación/edición.", "error");
         return;
       }
