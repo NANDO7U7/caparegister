@@ -75,6 +75,9 @@ tras confirmar su respaldo privado; permanecen en el historial de Git.
 
 ## Configuracion actual y pruebas aisladas
 
+Para usar SIGECAP en una computadora Windows, sigue la
+[guía de instalación local](docs/instalacion-windows.md).
+
 Consulta [docs/seguridad.md](docs/seguridad.md) para iniciar el perfil local,
 configurar produccion sin secretos versionados y ejecutar pruebas sobre bases
 en memoria. No uses credenciales de documentos historicos ni el comando retirado
